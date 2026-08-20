@@ -1,12 +1,12 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 export function Hero() {
   return (
     <div className="text-left">
-      <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/30 dark:bg-amber-950/30 dark:text-amber-200">
-        <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+      <Badge variant="amber" withDot dotColor="bg-amber-500">
         Paste → Analyze → Proposal in under 2 min
-      </div>
+      </Badge>
       <h1 className="mt-5 text-[36px] font-semibold leading-[0.95] tracking-[-0.03em] text-stone-900 dark:text-white sm:text-[52px]">
         Turn any job
         <br />

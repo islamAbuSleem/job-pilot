@@ -1,3 +1,6 @@
+import { Badge } from "@/components/ui/badge";
+import { MetricTile } from "./MetricTile";
+
 export function PreviewCard() {
   return (
     <div className="relative">
@@ -9,9 +12,9 @@ export function PreviewCard() {
             <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
           </div>
-          <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-semibold tracking-widest text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+          <Badge variant="stone" size="sm">
             ANALYSIS • ANTHROPIC/CLAUDE-3.5
-          </span>
+          </Badge>
         </div>
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
@@ -19,23 +22,12 @@ export function PreviewCard() {
               <p className="text-xs font-semibold tracking-widest text-stone-500">SENIOR FRONTEND • ACME</p>
               <h3 className="mt-1 text-sm font-semibold leading-5">Fit Analysis — 82/100</h3>
             </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
-              Strong fit
-            </span>
+            <Badge variant="emerald">Strong fit</Badge>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl bg-stone-50 p-3 dark:bg-stone-800/50">
-              <p className="text-[11px] font-semibold tracking-widest text-stone-500">MATCHED</p>
-              <p className="mt-1 text-sm font-semibold">React, TS, Tailwind</p>
-            </div>
-            <div className="rounded-2xl bg-amber-50 p-3 dark:bg-amber-950/20">
-              <p className="text-[11px] font-semibold tracking-widest text-amber-700 dark:text-amber-300">GAPS</p>
-              <p className="mt-1 text-sm font-semibold">Next.js 15, tRPC</p>
-            </div>
-            <div className="rounded-2xl bg-stone-50 p-3 dark:bg-stone-800/50">
-              <p className="text-[11px] font-semibold tracking-widest text-stone-500">RISKS</p>
-              <p className="mt-1 text-sm font-semibold">Vague scope</p>
-            </div>
+            <MetricTile label="MATCHED" value="React, TS, Tailwind" tone="stone" />
+            <MetricTile label="GAPS" value="Next.js 15, tRPC" tone="amber" />
+            <MetricTile label="RISKS" value="Vague scope" tone="stone" />
           </div>
           <div className="mt-4 rounded-2xl border border-stone-100 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-800/30">
             <p className="text-xs font-semibold tracking-widest text-stone-500">PROPOSAL DRAFT — STREAMING</p>
