@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 export function Hero() {
   return (
     <div className="text-left">
-      <Badge variant="amber" withDot dotColor="bg-amber-500">
+      <Badge variant="amber" withDot pulse dotColor="bg-amber-500">
         Paste → Analyze → Proposal in under 2 min
       </Badge>
       <h1 className="mt-5 text-[36px] font-semibold leading-[0.95] tracking-[-0.03em] text-stone-900 dark:text-white sm:text-[52px]">

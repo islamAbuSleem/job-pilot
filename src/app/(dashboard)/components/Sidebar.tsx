@@ -55,6 +55,7 @@ export function Sidebar({
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-800/50">
           <p className="text-xs font-semibold">Dev account</p>
           <p className="truncate text-xs text-stone-500">{email}</p>
+          {/* TODO(BE): replace with real auth state */}
           <p className="mt-2 text-xs text-stone-400">Auth wiring in Unit 3</p>
         </div>
       </div>
@@ -74,6 +75,7 @@ export function MobileTopbar({ email = "dev@example.com" }: { email?: string }) 
   );
 }
 
+// TODO(BE): replace hardcoded "3 jobs • 2 analyzed" with live data
 export function DashboardTopbar({ name = "Dev" }: { name?: string }) {
   return (
     <header className="hidden h-[64px] items-center justify-between border-b border-stone-200 bg-white/80 px-6 backdrop-blur dark:border-stone-800 dark:bg-stone-900/70 sm:flex sm:px-8">

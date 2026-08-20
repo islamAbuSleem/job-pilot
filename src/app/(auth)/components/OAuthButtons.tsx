@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 
+// TODO(BE): wire to real OAuth providers
 export type OAuthProvider = { id: string; label: string; icon: string; iconBg: string };
 
 const DEFAULT_PROVIDERS: OAuthProvider[] = [

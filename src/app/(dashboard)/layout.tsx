@@ -1,6 +1,6 @@
 import { Sidebar, MobileTopbar } from "./components/Sidebar";
 
-// TODO(Unit 3): wire to Auth.js — for now render shell without session guard
+// TODO(BE): replace hardcoded fake session with real Auth.js session
 
 export default async function DashboardLayout({
   children,

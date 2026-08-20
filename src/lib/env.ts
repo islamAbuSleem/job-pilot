@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required (postgres URL)"),
+  DATABASE_URL: z
+    .string()
+    .min(1, "DATABASE_URL is required (postgres URL)")
+    .refine((v) => v.startsWith("postgresql://") || v.startsWith("postgres://"), {
+      message: "DATABASE_URL must start with postgresql:// or postgres://",
+    }),
   AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required (openssl rand -base64 32)"),
   AUTH_URL: z.string().optional(),
   OPENROUTER_API_KEY: z.string().min(1, "OPENROUTER_API_KEY is required"),
@@ -23,7 +28,6 @@ export function getEnv(): Env {
     const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`Env validation failed: ${msg}`);
   }
-  // Warn if OAuth is partially configured
   const hasGoogleId = !!parsed.data.GOOGLE_CLIENT_ID;
   const hasGoogleSecret = !!parsed.data.GOOGLE_CLIENT_SECRET;
   if (hasGoogleId !== hasGoogleSecret) {
@@ -38,7 +42,6 @@ export function getEnv(): Env {
   return cached;
 }
 
-// For testing: allow clearing cache
 export function _clearEnvCache() {
   cached = null;
 }

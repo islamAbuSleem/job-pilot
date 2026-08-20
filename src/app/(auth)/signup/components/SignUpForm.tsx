@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// TODO(BE): replace preventDefault no-op and UI-only copy with real auth
 export function SignUpForm() {
   return (
     <form className="flex flex-col gap-3.5" onSubmit={(e) => e.preventDefault()}>

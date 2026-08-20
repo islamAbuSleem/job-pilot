@@ -15,6 +15,7 @@ export default function SignInPage() {
       <SignInForm />
       <AuthDivider />
       <OAuthButtons />
+      {/* TODO(BE): remove mock Dashboard link when auth is wired */}
       <p className="mt-6 text-center text-xs text-stone-400">
         <Link href="/" className="underline">Back to home</Link> · <Link href="/dashboard" className="underline">Dashboard (mock)</Link>
       </p>

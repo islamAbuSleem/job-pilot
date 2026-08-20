@@ -1,5 +1,6 @@
 export type Stat = { label: string; value: string; sub: string; accent?: boolean };
 
+// TODO(BE): replace DEFAULT_STATS mock with real data from BE
 const DEFAULT_STATS: Stat[] = [
   { label: "TOTAL JOBS", value: "12", sub: "3 this week" },
   { label: "ANALYZED", value: "8", sub: "Avg fit 74/100", accent: true },

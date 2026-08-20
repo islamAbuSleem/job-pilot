@@ -2,6 +2,7 @@ import Link from "next/link";
 
 export type JobItem = { title: string; fit: number; status: string; tone: "amber" | "stone" | "emerald" };
 
+// TODO(BE): replace DEFAULT_JOBS mock with real data from BE
 const DEFAULT_JOBS: JobItem[] = [
   { title: "Senior Frontend — Acme", fit: 82, status: "Analyzed", tone: "amber" },
   { title: "Backend (Node) — Stark", fit: 64, status: "Needs analysis", tone: "stone" },

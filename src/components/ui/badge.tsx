@@ -8,6 +8,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   size?: BadgeSize;
   withDot?: boolean;
   dotColor?: string;
+  pulse?: boolean;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -28,6 +29,7 @@ export function Badge({
   size = "md",
   withDot = false,
   dotColor = "bg-amber-500",
+  pulse = false,
   className = "",
   children,
   ...props
@@ -37,7 +39,7 @@ export function Badge({
       className={`inline-flex items-center gap-1.5 rounded-full ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     >
-      {withDot && <span className={`h-2 w-2 rounded-full ${dotColor} ${dotColor.includes("amber") ? "animate-pulse" : ""}`} aria-hidden />}
+      {withDot && <span className={`h-2 w-2 rounded-full ${dotColor} ${pulse ? "animate-pulse" : ""}`} aria-hidden />}
       {children}
     </span>
   );

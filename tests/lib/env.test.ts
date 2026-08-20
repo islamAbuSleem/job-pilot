@@ -42,12 +42,12 @@ describe("env validation", () => {
     expect(() => getEnv()).toThrow(/OPENROUTER_API_KEY/);
   });
 
-  it("throws on invalid DATABASE_URL format handled via required check", () => {
+  it("throws when DATABASE_URL has invalid format", () => {
     setEnv({
-      DATABASE_URL: "",
+      DATABASE_URL: "mysql://user:pass@localhost:5432/db",
       AUTH_SECRET: "secret123",
       OPENROUTER_API_KEY: "sk-or-123",
     });
-    expect(() => getEnv()).toThrow();
+    expect(() => getEnv()).toThrow(/must start with postgresql:\/\//);
   });
 });
