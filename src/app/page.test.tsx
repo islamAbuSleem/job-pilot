@@ -10,10 +10,10 @@ describe("landing page", () => {
     expect(links[0].getAttribute("href")).toBe("/dashboard");
   });
 
-  it("shows JobPilot branding and key sections", () => {
+  it("shows JobPilot branding and warm professional sections", () => {
     render(<Home />);
     expect(screen.getByText("JobPilot")).toBeInTheDocument();
-    expect(screen.getByText(/Paste any job/)).toBeInTheDocument();
-    expect(screen.getByText(/Analyze fit/)).toBeInTheDocument();
+    expect(screen.getByText(/Turn any job/)).toBeInTheDocument();
+    expect(screen.getByText(/How it works/)).toBeInTheDocument();
   });
 });

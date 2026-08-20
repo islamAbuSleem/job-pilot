@@ -7,7 +7,7 @@ export const Input = React.forwardRef<
   <input
     type={type}
     ref={ref}
-    className={`flex h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-visible:ring-white ${className}`}
+    className={`flex h-10 w-full rounded-full border border-stone-200 bg-white px-4 py-2 text-sm placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:border-amber-500 disabled:opacity-50 transition-colors dark:border-stone-800 dark:bg-stone-900 dark:placeholder:text-stone-500 ${className}`}
     {...props}
   />
 ));
