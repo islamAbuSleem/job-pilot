@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getEnv, _clearEnvCache } from "./env";
+import { getEnv, _clearEnvCache } from "@/lib/env";
 
 function setEnv(vars: Record<string, string | undefined>) {
   _clearEnvCache();

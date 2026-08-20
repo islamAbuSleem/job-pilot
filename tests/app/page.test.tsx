@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import Home from "./page";
+import Home from "@/app/page";
 
 describe("landing page", () => {
   it("renders CTA linking to dashboard", () => {
