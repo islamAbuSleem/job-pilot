@@ -1,12 +1,14 @@
 import Link from "next/link";
 
-const JOBS = [
-  { title: "Senior Frontend — Acme", fit: 82, status: "Analyzed", tone: "amber" as const },
-  { title: "Backend (Node) — Stark", fit: 64, status: "Needs analysis", tone: "stone" as const },
-  { title: "Full-stack Freelance — Upwork", fit: 91, status: "Proposal ready", tone: "emerald" as const },
+export type JobItem = { title: string; fit: number; status: string; tone: "amber" | "stone" | "emerald" };
+
+const DEFAULT_JOBS: JobItem[] = [
+  { title: "Senior Frontend — Acme", fit: 82, status: "Analyzed", tone: "amber" },
+  { title: "Backend (Node) — Stark", fit: 64, status: "Needs analysis", tone: "stone" },
+  { title: "Full-stack Freelance — Upwork", fit: 91, status: "Proposal ready", tone: "emerald" },
 ];
 
-export function RecentJobs() {
+export function RecentJobs({ jobs = DEFAULT_JOBS }: { jobs?: JobItem[] }) {
   return (
     <div className="rounded-[24px] border border-stone-200 bg-white p-6 dark:border-stone-800 dark:bg-stone-900">
       <div className="flex items-center justify-between">
@@ -16,7 +18,7 @@ export function RecentJobs() {
         </Link>
       </div>
       <div className="mt-4 space-y-3">
-        {JOBS.map((j) => (
+        {jobs.map((j) => (
           <div
             key={j.title}
             className="flex items-center justify-between rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3 dark:border-stone-800 dark:bg-stone-800/40"

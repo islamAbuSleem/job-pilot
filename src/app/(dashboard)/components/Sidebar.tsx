@@ -1,6 +1,19 @@
 import Link from "next/link";
 
-export function Sidebar({ email = "dev@example.com" }: { email?: string }) {
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", active: true },
+  { href: "/jobs", label: "Jobs", active: false },
+  { href: "/profile", label: "Profile", active: false },
+  { href: "/settings", label: "Settings", active: false },
+] as const;
+
+export function Sidebar({
+  email = "dev@example.com",
+  items = NAV_ITEMS,
+}: {
+  email?: string;
+  items?: typeof NAV_ITEMS;
+}) {
   return (
     <aside className="hidden w-[280px] shrink-0 flex-col border-r border-stone-200 bg-white dark:border-stone-800 dark:bg-stone-900 sm:flex">
       <div className="flex h-[64px] items-center gap-3 border-b border-stone-100 px-6 dark:border-stone-800">
@@ -23,30 +36,19 @@ export function Sidebar({ email = "dev@example.com" }: { email?: string }) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2 text-sm">
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-3 rounded-full bg-stone-900 px-3.5 py-2.5 font-medium text-white dark:bg-white dark:text-stone-900"
-        >
-          <span className="h-2 w-2 rounded-full bg-amber-400" /> Dashboard
-        </Link>
-        <Link
-          href="/jobs"
-          className="flex items-center gap-3 rounded-full px-3.5 py-2.5 text-stone-600 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-stone-400" /> Jobs
-        </Link>
-        <Link
-          href="/profile"
-          className="flex items-center gap-3 rounded-full px-3.5 py-2.5 text-stone-600 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800"
-        >
-          Profile
-        </Link>
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 rounded-full px-3.5 py-2.5 text-stone-600 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800"
-        >
-          Settings
-        </Link>
+        {items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-3 rounded-full px-3.5 py-2.5 ${
+              item.active
+                ? "bg-stone-900 font-medium text-white dark:bg-white dark:text-stone-900"
+                : "text-stone-600 hover:bg-stone-50 dark:text-stone-400 dark:hover:bg-stone-800"
+            }`}
+          >
+            <span className={`rounded-full ${item.active ? "h-2 w-2 bg-amber-400" : "h-1.5 w-1.5 bg-stone-400"}`} /> {item.label}
+          </Link>
+        ))}
       </nav>
 
       <div className="border-t border-stone-100 p-4 dark:border-stone-800">

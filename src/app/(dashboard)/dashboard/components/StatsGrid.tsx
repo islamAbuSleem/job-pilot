@@ -1,9 +1,17 @@
-export function StatsGrid() {
+export type Stat = { label: string; value: string; sub: string; accent?: boolean };
+
+const DEFAULT_STATS: Stat[] = [
+  { label: "TOTAL JOBS", value: "12", sub: "3 this week" },
+  { label: "ANALYZED", value: "8", sub: "Avg fit 74/100", accent: true },
+  { label: "PROPOSALS", value: "5", sub: "2 ready to send" },
+];
+
+export function StatsGrid({ stats = DEFAULT_STATS }: { stats?: Stat[] }) {
   return (
     <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <StatCard label="TOTAL JOBS" value="12" sub="3 this week" />
-      <StatCard label="ANALYZED" value="8" sub="Avg fit 74/100" accent />
-      <StatCard label="PROPOSALS" value="5" sub="2 ready to send" />
+      {stats.map((s) => (
+        <StatCard key={s.label} {...s} />
+      ))}
     </div>
   );
 }

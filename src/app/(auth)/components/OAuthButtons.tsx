@@ -2,17 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 
-export function OAuthButtons() {
+export type OAuthProvider = { id: string; label: string; icon: string; iconBg: string };
+
+const DEFAULT_PROVIDERS: OAuthProvider[] = [
+  { id: "google", label: "Continue with Google", icon: "G", iconBg: "bg-white shadow-sm text-[11px] font-bold" },
+  { id: "github", label: "Continue with GitHub", icon: "⌥", iconBg: "bg-stone-900 text-white text-xs" },
+];
+
+export function OAuthButtons({ providers = DEFAULT_PROVIDERS }: { providers?: OAuthProvider[] }) {
   return (
     <div className="flex flex-col gap-2.5">
-      <Button variant="outline" className="w-full justify-center gap-2" type="button">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm text-[11px] font-bold">G</span>
-        Continue with Google
-      </Button>
-      <Button variant="outline" className="w-full justify-center gap-2" type="button">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-stone-900 text-white text-xs">⌥</span>
-        Continue with GitHub
-      </Button>
+      {providers.map((p) => (
+        <Button key={p.id} variant="outline" className="w-full justify-center gap-2" type="button">
+          <span className={`flex h-5 w-5 items-center justify-center rounded-full ${p.iconBg}`}>{p.icon}</span>
+          {p.label}
+        </Button>
+      ))}
     </div>
   );
 }

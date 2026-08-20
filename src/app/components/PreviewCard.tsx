@@ -1,7 +1,25 @@
 import { Badge } from "@/components/ui/badge";
 import { MetricTile } from "./MetricTile";
 
-export function PreviewCard() {
+export type Metric = { label: string; value: string; tone?: "stone" | "amber" };
+
+const DEFAULT_METRICS: Metric[] = [
+  { label: "MATCHED", value: "React, TS, Tailwind", tone: "stone" },
+  { label: "GAPS", value: "Next.js 15, tRPC", tone: "amber" },
+  { label: "RISKS", value: "Vague scope", tone: "stone" },
+];
+
+export function PreviewCard({
+  jobTitle = "SENIOR FRONTEND • ACME",
+  fitLabel = "Fit Analysis — 82/100",
+  badge = "Strong fit",
+  metrics = DEFAULT_METRICS,
+}: {
+  jobTitle?: string;
+  fitLabel?: string;
+  badge?: string;
+  metrics?: Metric[];
+}) {
   return (
     <div className="relative">
       <div className="absolute -inset-3 -z-10 rounded-[28px] bg-gradient-to-br from-amber-100 to-stone-100 blur-2xl dark:from-amber-950/20 dark:to-stone-900/40" />
@@ -19,15 +37,15 @@ export function PreviewCard() {
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-widest text-stone-500">SENIOR FRONTEND • ACME</p>
-              <h3 className="mt-1 text-sm font-semibold leading-5">Fit Analysis — 82/100</h3>
+              <p className="text-xs font-semibold tracking-widest text-stone-500">{jobTitle}</p>
+              <h3 className="mt-1 text-sm font-semibold leading-5">{fitLabel}</h3>
             </div>
-            <Badge variant="emerald">Strong fit</Badge>
+            <Badge variant="emerald">{badge}</Badge>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <MetricTile label="MATCHED" value="React, TS, Tailwind" tone="stone" />
-            <MetricTile label="GAPS" value="Next.js 15, tRPC" tone="amber" />
-            <MetricTile label="RISKS" value="Vague scope" tone="stone" />
+            {metrics.map((m) => (
+              <MetricTile key={m.label} {...m} />
+            ))}
           </div>
           <div className="mt-4 rounded-2xl border border-stone-100 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-800/30">
             <p className="text-xs font-semibold tracking-widest text-stone-500">PROPOSAL DRAFT — STREAMING</p>

@@ -1,4 +1,23 @@
-export function HowItWorks() {
+const STEPS = [
+  {
+    number: "1",
+    title: "Paste job",
+    description: "Raw text or any public URL. We strip nav, normalize title/company, and keep source.",
+  },
+  {
+    number: "2",
+    title: "Analyze fit",
+    description: "Streaming score 0-100, matched skills, gaps to address, strengths, and red flags vs your selected resume.",
+    highlighted: true,
+  },
+  {
+    number: "3",
+    title: "Generate proposal",
+    description: "Auto-detects freelance bid vs cover letter, streams an editable draft you can copy or download.",
+  },
+] as const;
+
+export function HowItWorks({ steps = STEPS }: { steps?: typeof STEPS }) {
   return (
     <section className="py-10">
       <div className="mx-auto max-w-6xl rounded-[28px] border border-stone-200 bg-white p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:border-stone-800 dark:bg-stone-900 sm:p-8">
@@ -7,9 +26,9 @@ export function HowItWorks() {
           <p className="text-sm text-stone-500">Paste once. Reuse your profile everywhere.</p>
         </div>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Step number="1" title="Paste job" description="Raw text or any public URL. We strip nav, normalize title/company, and keep source." />
-          <Step number="2" title="Analyze fit" description="Streaming score 0-100, matched skills, gaps to address, strengths, and red flags vs your selected resume." highlighted />
-          <Step number="3" title="Generate proposal" description="Auto-detects freelance bid vs cover letter, streams an editable draft you can copy or download." />
+          {steps.map((s) => (
+            <Step key={s.number} {...s} />
+          ))}
         </div>
       </div>
     </section>
