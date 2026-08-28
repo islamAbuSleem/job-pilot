@@ -120,6 +120,39 @@ After building any component — update this file with the component name, file 
 - Holds `POST_AUTH_COOKIE` constant and `sanitizeNextPath(value)` helper. Sanitization rules: must start with `/`, must not start with `//` or `/\`, must not contain CR/LF. Imported by `actions/auth.ts` and `app/api/auth/callback/route.ts` so the allowlist lives in one place.
 - Lives outside `actions/` because Server Action files require every export to be an async function — synchronous helpers cannot be exported from `"use server"` modules.
 
+#### `PageviewTracker` — `components/PageviewTracker.tsx`
+- Client Component. Calls `capturePageview(path)` on mount. Renders `null`. Use as `<PageviewTracker path="/..." />` inside a Server Component page.
+
+#### `instrumentation-client.ts` — project root
+- Next.js 16's standard client-side SDK bootstrap (auto-loaded by the framework).
+- Initializes PostHog if both `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `NEXT_PUBLIC_POSTHOG_HOST` are set; otherwise logs a single dev-mode error and continues (no throw).
+- Calls `insforge.auth.getCurrentUser()` on every page load and runs `posthog.identify(user.id, { email, name })` or `posthog.reset()` based on session state, using `localStorage("posthog_identified_user_id")` to detect user changes.
+- Auto-captures JS exceptions via `capture_exceptions: true`.
+
+#### `app/global-error.tsx`
+- Client Component root error boundary (Next.js 16).
+- Calls `posthog.captureException(error)` in a `useEffect` when both env vars are set.
+
+#### `lib/posthog-client.ts`
+- Thin browser-side wrapper around `posthog-js`. `posthog.capture()` no-ops until `instrumentation-client.ts` initializes PostHog, so calls from this file are always safe.
+- `captureEvent(event, properties?)` — wrapper around `posthog.capture()`.
+- `capturePageview(path?)` — wrapper around `posthog.capture("$pageview", { $current_url: path })`. Manual pageview capture because `instrumentation-client.ts` does not set `capture_pageview: true` (so pages opt in explicitly).
+
+#### `lib/posthog-server.ts`
+- `createPostHogServer()` — returns a `posthog-node` `PostHog` instance with `flushAt: 1` and `flushInterval: 0`. Returns `null` if env vars are missing.
+- `captureServerEvent(distinctId, event, properties?)` — convenience wrapper that creates the client, captures the event, and calls `shutdown()`. Catches and logs errors so a PostHog outage never breaks the calling route.
+
+#### `ProfilePage` — `app/profile/page.tsx`
+- Server Component. Reads current user via `createInsforgeServer().auth.getCurrentUser()` and computes `isAuthed` from the `insforge_access_token` cookie.
+- Renders `<Navbar isAuthed>` and a "Coming soon" card pointing back to `/dashboard` or `/logout`. Feature 05 replaces this with the real profile editor.
+- Wrapper: `min-h-screen flex flex-col bg-background`, main `mx-auto max-w-[1440px] w-full px-8 py-12`, card matches the standard `bg-surface border border-border rounded-2xl p-8` pattern.
+
+#### `app/api/auth/logout/route.ts`
+- GET handler. Constructs a `NextResponse.redirect("/")` first so the redirect `Set-Cookie` headers ride on the same response, then calls `createAuthActions({ requestCookies, responseCookies }).signOut()` to clear `insforge_access_token` + `insforge_refresh_token`.
+- Sign-out cannot be a Server Component page because in Next.js 16, cookies are read-only in Server Components — the `signOut` action throws "Cookies can only be modified in a Server Action or Route Handler." A Route Handler with the request/response cookie split is the writable context.
+- `instrumentation-client.ts` picks up the cleared session on the next page load and calls `posthog.reset()` because the previously-identified user id is gone.
+- Linked from any "Sign out" button via `href="/api/auth/logout"`.
+
 ---
 
 ## Patterns

@@ -7,6 +7,7 @@ import { ManageSection } from "@/components/homepage/ManageSection";
 import { ApplySection } from "@/components/homepage/ApplySection";
 import { Testimonial } from "@/components/homepage/Testimonial";
 import { BottomCta } from "@/components/homepage/BottomCta";
+import { PageviewTracker } from "@/components/PageviewTracker";
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -16,6 +17,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <PageviewTracker path="/" />
       <Navbar isAuthed={isAuthed} />
       <main className="flex-1">
         <Hero isAuthed={isAuthed} />

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { initiateOAuth } from "@/actions/auth";
+import { captureEvent } from "@/lib/posthog-client";
 
 type Provider = "google" | "github";
 
@@ -65,6 +66,8 @@ export function OAuthButtons({ nextPath }: Props) {
   const [, startTransition] = useTransition();
 
   function handleClick(provider: Provider) {
+    captureEvent("oauth_sign_in_started", { provider });
+
     setPending(provider);
     startTransition(() => {
       void initiateOAuth(provider, nextPath);

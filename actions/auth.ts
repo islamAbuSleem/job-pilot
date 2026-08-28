@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAuthActions } from "@insforge/sdk/ssr";
 import { POST_AUTH_COOKIE, sanitizeNextPath } from "@/lib/auth-redirect";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 type OAuthProvider = "google" | "github";
 
@@ -20,6 +21,11 @@ export async function initiateOAuth(
     "/api/auth/callback",
     process.env.NEXT_PUBLIC_APP_URL,
   ).toString();
+
+  await captureServerEvent("anonymous", "oauth_initiated", {
+    provider,
+    has_next: Boolean(safeNextForLog(nextPath)),
+  });
 
   const { data, error } = await auth.signInWithOAuth(provider, {
     redirectTo,
@@ -63,4 +69,11 @@ export async function signOut() {
   const cookieStore = await cookies();
   const auth = createAuthActions({ cookies: cookieStore });
   return auth.signOut();
+}
+
+function safeNextForLog(value: string | undefined): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//") || value.startsWith("/\\")) return null;
+  return value;
 }

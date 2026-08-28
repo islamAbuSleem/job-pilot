@@ -68,3 +68,13 @@ Update this file after every completed feature. Any AI agent reading this should
 - `npx -y @insforge/cli config apply` requires a TTY. Use `--auto-approve` to apply from non-interactive shells.
 - InsForge has `requireEmailVerification: true` but it only gates password sign-up — OAuth users arrive pre-verified through their identity provider. No code change needed for the OAuth flow, but if a password sign-up flow is added later, branch on the response per `.agents/skills/insforge/auth/sdk-integration.md:26-89`.
 - `nextPath` post-auth redirect: stored in `insforge_post_auth_redirect` cookie (10 min TTL, httpOnly). `sanitizeNextPath` in `lib/auth-redirect.ts` is the single source of truth for the allowlist (must start with `/`, not `//`, no CR/LF). Lives outside `actions/` because `"use server"` files require every export to be an async function.
+
+### 03 PostHog Initialization (partial)
+- Env var name in this project: `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` + `NEXT_PUBLIC_POSTHOG_HOST`. PostHog's own docs typically use `NEXT_PUBLIC_POSTHOG_KEY` — don't be confused if a skill says "set POSTHOG_KEY". The code reads `_PROJECT_TOKEN` everywhere.
+- Browser init is a no-op when the env var is missing — safe to develop without keys.
+- Currently wired events: `$pageview` on `/`, `oauth_sign_in_started` on button click, `oauth_initiated` server-side when `initiateOAuth` runs, `oauth_succeeded` and `oauth_failed` in the callback. The four business events (`job_search_started`, `job_found`, `profile_completed`, `company_researched`) from `code-standards.md` are still pending Features 06/10/13.
+- No `posthog.identify(userId)` / `posthog.reset()` yet — those belong to the full Feature 03 scope.
+
+### 02 Auth follow-up (rolled into 03 branch)
+- Added `app/profile/page.tsx` — placeholder that reads the current user via `createInsforgeServer().auth.getCurrentUser()` and renders a "Coming soon" card with a Sign-out link to `/api/auth/logout`. Feature 05 will replace this with the real form.
+- Sign-out lives at `app/api/auth/logout/route.ts` (GET handler), not a `/logout` page. The Server Component version (`app/(auth)/logout/page.tsx`) was deleted because in Next.js 16 cookies are read-only in Server Components — `createAuthActions` threw "Cookies can only be modified in a Server Action or Route Handler." The Route Handler uses the request/response cookie split, clears both auth cookies, and redirects to `/`.
