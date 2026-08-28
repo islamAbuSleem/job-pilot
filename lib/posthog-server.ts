@@ -2,7 +2,8 @@ import { PostHog } from "posthog-node";
 
 export function createPostHogServer() {
   const key = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+  const host =
+    process.env.POSTHOG_HOST ?? process.env.NEXT_PUBLIC_POSTHOG_HOST;
   if (!key || !host) return null;
 
   return new PostHog(key, {
