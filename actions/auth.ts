@@ -3,10 +3,16 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAuthActions } from "@insforge/sdk/ssr";
+import { POST_AUTH_COOKIE, sanitizeNextPath } from "@/lib/auth-redirect";
 
 type OAuthProvider = "google" | "github";
 
-export async function initiateOAuth(provider: OAuthProvider) {
+const POST_AUTH_MAX_AGE = 600;
+
+export async function initiateOAuth(
+  provider: OAuthProvider,
+  nextPath?: string,
+) {
   const cookieStore = await cookies();
   const auth = createAuthActions({ cookies: cookieStore });
 
@@ -21,6 +27,11 @@ export async function initiateOAuth(provider: OAuthProvider) {
   });
 
   if (error || !data?.url || !data?.codeVerifier) {
+    console.error(
+      "[actions/auth] initiateOAuth failed",
+      `provider=${provider}`,
+      error?.message ?? "missing data",
+    );
     return { success: false, error: error?.message ?? "OAuth init failed" };
   }
 
@@ -29,8 +40,21 @@ export async function initiateOAuth(provider: OAuthProvider) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 600,
+    maxAge: POST_AUTH_MAX_AGE,
   });
+
+  const safeNext = sanitizeNextPath(nextPath);
+  if (safeNext) {
+    cookieStore.set(POST_AUTH_COOKIE, safeNext, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: POST_AUTH_MAX_AGE,
+    });
+  } else {
+    cookieStore.delete(POST_AUTH_COOKIE);
+  }
 
   redirect(data.url);
 }
