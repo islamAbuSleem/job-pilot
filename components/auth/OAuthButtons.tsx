@@ -60,14 +60,14 @@ const PROVIDERS: {
   },
 ];
 
-export function OAuthButtons({ nextPath: _nextPath }: Props) {
+export function OAuthButtons({ nextPath }: Props) {
   const [pending, setPending] = useState<Provider | null>(null);
   const [, startTransition] = useTransition();
 
   function handleClick(provider: Provider) {
     setPending(provider);
     startTransition(() => {
-      void initiateOAuth(provider);
+      void initiateOAuth(provider, nextPath);
     });
   }
 

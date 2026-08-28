@@ -34,11 +34,6 @@ After building any component — update this file with the component name, file 
 - inner → `mx-auto max-w-[1440px] px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4`
 - links → `text-[14px] font-medium text-text-dark hover:text-accent`
 
-#### `Footer` — `components/layout/Footer.tsx`
-- `footer` → `w-full bg-surface border-t border-border`
-- inner → `mx-auto max-w-[1440px] px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4`
-- links → `text-[14px] font-medium text-text-dark hover:text-accent`
-
 ### Homepage
 
 #### `Hero` — `components/homepage/Hero.tsx`
@@ -86,6 +81,7 @@ After building any component — update this file with the component name, file 
 - Client Component (`"use client"`) — invokes the `initiateOAuth` Server Action.
 - Each button → `w-full inline-flex items-center justify-center gap-3 rounded-md border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-text-primary hover:bg-surface-secondary disabled:opacity-60 disabled:cursor-not-allowed transition-colors`
 - Renders provider icon on the left + label on the right. Pending state shows "Redirecting..." and disables both buttons.
+- Accepts `nextPath?: string` and forwards it to `initiateOAuth(provider, nextPath)`. The Server Action persists it (after sanitization) in the `insforge_post_auth_redirect` cookie so the callback can return the user to the page they originally tried to visit.
 
 #### `LoginPage` — `app/(auth)/login/page.tsx`
 - Server Component reading `searchParams: { error?, next? }`.
@@ -110,14 +106,19 @@ After building any component — update this file with the component name, file 
 #### `app/api/auth/callback/route.ts`
 - GET handler reads `insforge_code` + `error` from query.
 - Reads `insforge_code_verifier` cookie. If missing → redirect `/login?error=missing_verifier`.
+- Reads `insforge_post_auth_redirect` cookie, sanitizes via `sanitizeNextPath()`, falls back to `/dashboard` if missing/invalid.
 - Calls `createAuthActions({ requestCookies, responseCookies })` then `exchangeOAuthCode(code, codeVerifier)`.
-- On success: redirect to `/dashboard`, delete the verifier cookie.
+- On success: redirect to the sanitized next path, delete both `insforge_code_verifier` and `insforge_post_auth_redirect` cookies.
 - On failure: redirect to `/login?error=exchange_failed`.
 
 #### `actions/auth.ts`
-- `initiateOAuth(provider)` — Server Action. Calls `auth.signInWithOAuth(provider, { redirectTo: '<NEXT_PUBLIC_APP_URL>/api/auth/callback', skipBrowserRedirect: true })`. Stores `codeVerifier` in `insforge_code_verifier` cookie, then `redirect(data.url)`.
+- `initiateOAuth(provider, nextPath?)` — Server Action. Calls `auth.signInWithOAuth(provider, { redirectTo: '<NEXT_PUBLIC_APP_URL>/api/auth/callback', skipBrowserRedirect: true })`. Stores `codeVerifier` in `insforge_code_verifier` cookie, sanitizes `nextPath` and (if safe) stores it in `insforge_post_auth_redirect`, then `redirect(data.url)`. Logs and returns `{ success: false, error }` on init failure.
 - `signOut()` — Server Action. Wraps `auth.signOut()`.
 - Constraints: only "google" and "github" are accepted (the enabled providers in this project).
+
+#### `lib/auth-redirect.ts`
+- Holds `POST_AUTH_COOKIE` constant and `sanitizeNextPath(value)` helper. Sanitization rules: must start with `/`, must not start with `//` or `/\`, must not contain CR/LF. Imported by `actions/auth.ts` and `app/api/auth/callback/route.ts` so the allowlist lives in one place.
+- Lives outside `actions/` because Server Action files require every export to be an async function — synchronous helpers cannot be exported from `"use server"` modules.
 
 ---
 
