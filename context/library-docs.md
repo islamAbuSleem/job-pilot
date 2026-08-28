@@ -28,65 +28,84 @@ Never rely on general training knowledge alone for library APIs — they change 
 
 ## InsForge
 
-**Check first:** Check AGENTS.md for an installed InsForge skill. If an InsForge MCP server is configured — use it. The skill/MCP will have the latest API patterns.
+**Check first:** Read `.agents/skills/insforge/SKILL.md` and `.agents/skills/insforge/auth/ssr-integration.md` before implementing any InsForge feature. Those are the live, authoritative references for the current `@insforge/sdk` API. This section is a project-level supplement, not the source of truth.
+
+### Project link
+
+- Linked project: `islam_jobPilot` (region `eu-central`).
+- Link state lives in `.insforge/project.json` (git-ignored). Re-link with `npx -y @insforge/cli link`.
+- Pull the anon key with `npx -y @insforge/cli secrets get ANON_KEY`.
+- Manage declarative project config (auth redirect URLs, password policy, verification method, etc.) via `insforge.toml` + `npx -y @insforge/cli config apply --auto-approve`.
 
 ### Client vs Server
 
-Two separate instances — never mix them:
+Two separate instances — never mix them. Use `@insforge/sdk/ssr` (not the older separate `@insforge/ssr` package).
 
 ```typescript
-// lib/insforge-client.ts — browser context only
-import { createBrowserClient } from "@insforge/ssr";
+// lib/insforge-client.ts — Client Components only
+import { createBrowserClient } from "@insforge/sdk/ssr";
 
-export const insforge = createBrowserClient(
-  process.env.NEXT_PUBLIC_INSFORGE_URL!,
-  process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-);
+export const insforge = createBrowserClient();
 ```
 
 ```typescript
-// lib/insforge-server.ts — server context only
-import { createServerClient } from "@insforge/ssr";
+// lib/insforge-server.ts — Server Components, Route Handlers, Server Actions, agent
 import { cookies } from "next/headers";
+import { createServerClient } from "@insforge/sdk/ssr";
 
-export const createInsforgeServer = async () => {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_INSFORGE_URL!,
-    process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-};
+export async function createInsforgeServer() {
+  return createServerClient({
+    cookies: await cookies(),
+  });
+}
 ```
 
 **Rules:**
 
-- Browser client — Client Components, browser-side auth state, realtime subscriptions
-- Server client — Server Components, API routes, Server Actions, agent functions
-- Never use browser client in server context
-- Never use server client in browser context
+- The browser client is **read-only** for auth: only `getCurrentUser()`, `getProfile()`, `getPublicAuthConfig()`. All auth **mutations** (sign-in, sign-up, sign-out, OAuth initiation/exchange, email verification, password reset) must run on the server via `createAuthActions()`.
+- The server client reads `insforge_access_token` from cookies and passes it as a per-request bearer. The refresh token stays server-owned (httpOnly).
+- For trusted server-only code that needs project-admin access, use `createAdminClient({ apiKey })` from `@insforge/sdk` (not `/ssr`).
+- Never use the browser client in server context. Never use the server client in browser context.
 
----
+### Cookies
+
+Default cookies (managed by SDK helpers — do not invent your own names):
+
+| Cookie | Visibility | Purpose |
+| --- | --- | --- |
+| `insforge_access_token` | httpOnly: false (browser-readable) | Short-lived bearer for Server Components, Client Components, Storage, Realtime |
+| `insforge_refresh_token` | httpOnly: true (server-only) | Long-lived refresh credential |
+| `insforge_code_verifier` | httpOnly: true (during OAuth flow) | PKCE verifier, 10-minute lifetime, deleted on callback success |
+
+### Required infrastructure for any auth flow
+
+1. `/api/auth/refresh` route — `createRefreshAuthRouter()` from `@insforge/sdk/ssr`. The browser client uses it to refresh expired access tokens.
+2. `proxy.ts` at the project root (Next.js 16) — `updateSession()` from `@insforge/sdk/ssr/middleware`. Keeps Server Component cookies fresh and gates protected routes. (`middleware.ts` is Next.js ≤15.)
+3. `/api/auth/callback` route — `createAuthActions({ requestCookies, responseCookies })` with `exchangeOAuthCode()` to complete the SSR OAuth exchange and write auth cookies.
 
 ### Auth
 
 ```typescript
 // Get current user in server context
 const insforge = await createInsforgeServer();
-const {
-  data: { user },
-  error,
-} = await insforge.auth.getUser();
+const { data: { user } } = await insforge.auth.getCurrentUser();
 if (!user) redirect("/login");
+
+// Initiate OAuth from a Server Action
+const auth = createAuthActions({ cookies: await cookies() });
+const { data, error } = await auth.signInWithOAuth("google", {
+  redirectTo: new URL("/api/auth/callback", process.env.NEXT_PUBLIC_APP_URL).toString(),
+  skipBrowserRedirect: true,
+});
+// data.url — redirect the user here
+// data.codeVerifier — store in httpOnly cookie before redirecting
+
+// Exchange the OAuth code in the callback route
+const auth = createAuthActions({
+  requestCookies: request.cookies,
+  responseCookies: response.cookies,
+});
+const { data, error } = await auth.exchangeOAuthCode(code, codeVerifier);
 ```
 
 ---
@@ -101,10 +120,10 @@ const { data, error } = await insforge
   .eq("user_id", user.id)
   .order("found_at", { ascending: false });
 
-// Insert
+// Insert — must be an array
 const { data, error } = await insforge
   .from("jobs")
-  .insert({ user_id: user.id, title, company, match_score })
+  .insert([{ user_id: user.id, title, company, match_score }])
   .select()
   .single();
 
@@ -121,6 +140,8 @@ const { error } = await insforge
 - Always scope queries to `user_id` — never query without user filter
 - Always handle the `error` return — never assume success
 - Use `.single()` when expecting exactly one row
+- **Inserts take an array**: `insert([{ ... }])` — passing a single object throws
+- Reference users with `auth.users(id)`; use `auth.uid()` in RLS policies
 
 ---
 
@@ -152,6 +173,7 @@ const url = data.publicUrl;
 - Always use `upsert: true` for base resume uploads — overwrites existing file
 - Always save the public URL back to the DB after upload
 - Never write files to disk — always upload buffer directly to storage
+- For storage uploads, persist **both** the returned `url` AND `key` (needed for download/delete later)
 
 ---
 

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/homepage/Hero";
@@ -7,17 +8,22 @@ import { ApplySection } from "@/components/homepage/ApplySection";
 import { Testimonial } from "@/components/homepage/Testimonial";
 import { BottomCta } from "@/components/homepage/BottomCta";
 
-export default function Home() {
+export default async function Home() {
+  const cookieStore = await cookies();
+  const isAuthed = Boolean(
+    cookieStore.get("insforge_access_token")?.value,
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
+      <Navbar isAuthed={isAuthed} />
       <main className="flex-1">
-        <Hero primaryHref="/login" secondaryHref="/find-jobs" />
+        <Hero isAuthed={isAuthed} />
         <DashboardPreview />
         <ManageSection />
         <ApplySection />
         <Testimonial />
-        <BottomCta primaryHref="/login" secondaryHref="/find-jobs" />
+        <BottomCta isAuthed={isAuthed} />
       </main>
       <Footer />
     </div>

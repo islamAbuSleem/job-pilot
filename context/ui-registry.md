@@ -27,6 +27,12 @@ After building any component — update this file with the component name, file 
 - logo text → `text-[19px] font-bold leading-7 text-text-darkest`
 - nav links → `text-[14px] font-medium leading-5 text-text-dark hover:text-accent`
 - primary CTA → `bg-accent text-accent-foreground px-4 py-2 rounded-md text-[14px] font-medium`
+- Accepts `isAuthed: boolean` prop. When true, CTA label changes to "Open dashboard" and href becomes `/dashboard`.
+
+#### `Footer` — `components/layout/Footer.tsx`
+- `footer` → `w-full bg-surface border-t border-border`
+- inner → `mx-auto max-w-[1440px] px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4`
+- links → `text-[14px] font-medium text-text-dark hover:text-accent`
 
 #### `Footer` — `components/layout/Footer.tsx`
 - `footer` → `w-full bg-surface border-t border-border`
@@ -42,6 +48,7 @@ After building any component — update this file with the component name, file 
 - subhead → `mt-6 max-w-2xl mx-auto text-[16px] leading-6 text-text-secondary`
 - primary button → `bg-text-primary text-surface` (dark "Get Started" with arrow)
 - secondary button → `bg-surface border border-border text-text-primary`
+- Accepts `isAuthed: boolean` prop. Primary button href becomes `/dashboard` when authed, otherwise `/login`.
 
 #### `DashboardPreview` — `components/homepage/DashboardPreview.tsx`
 - wrapper → `rounded-2xl overflow-hidden bg-surface border border-border`
@@ -71,6 +78,46 @@ After building any component — update this file with the component name, file 
 #### `BottomCta` — `components/homepage/BottomCta.tsx`
 - mirror of `Hero` with a different radial gradient backdrop
 - inner → `mx-auto max-w-[1440px] px-8 py-24 text-center`
+- Accepts `isAuthed: boolean` prop. Same href logic as Hero.
+
+### Auth
+
+#### `OAuthButtons` — `components/auth/OAuthButtons.tsx`
+- Client Component (`"use client"`) — invokes the `initiateOAuth` Server Action.
+- Each button → `w-full inline-flex items-center justify-center gap-3 rounded-md border border-border bg-surface px-4 py-2.5 text-[14px] font-medium text-text-primary hover:bg-surface-secondary disabled:opacity-60 disabled:cursor-not-allowed transition-colors`
+- Renders provider icon on the left + label on the right. Pending state shows "Redirecting..." and disables both buttons.
+
+#### `LoginPage` — `app/(auth)/login/page.tsx`
+- Server Component reading `searchParams: { error?, next? }`.
+- Layout: minimal header (logo only) + centered card.
+- Card → `w-full max-w-md bg-surface border border-border rounded-2xl p-8 shadow-[0px_1px_3px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)]`
+- Heading → `text-[24px] font-semibold leading-8 text-text-primary`
+- Subhead → `mt-2 text-[14px] leading-5 text-text-secondary`
+- Error banner (only when `error` is present) → `mt-6 rounded-md border border-border bg-surface-secondary px-3 py-2 text-[13px] text-error`
+- Error messages map (oauth_failed / missing_verifier / exchange_failed) is defined in the page; add to it if a new error is introduced.
+- Footer legal text → `mt-8 text-center text-[12px] leading-4 text-text-muted` with accent-colored inline links.
+
+### Server infrastructure
+
+#### `proxy.ts` — project root
+- Next.js 16 Proxy (replaces `middleware.ts`). Uses `updateSession()` from `@insforge/sdk/ssr/middleware`.
+- Matcher excludes `/_next/static`, `/_next/image`, `favicon.ico`, `images`, and `api/auth`.
+- Auth gate: any path under `/dashboard`, `/profile`, `/find-jobs` without an `insforge_access_token` cookie is redirected to `/login?next=<path>`.
+
+#### `app/api/auth/refresh/route.ts`
+- One-liner: `export const { POST } = createRefreshAuthRouter();`
+
+#### `app/api/auth/callback/route.ts`
+- GET handler reads `insforge_code` + `error` from query.
+- Reads `insforge_code_verifier` cookie. If missing → redirect `/login?error=missing_verifier`.
+- Calls `createAuthActions({ requestCookies, responseCookies })` then `exchangeOAuthCode(code, codeVerifier)`.
+- On success: redirect to `/dashboard`, delete the verifier cookie.
+- On failure: redirect to `/login?error=exchange_failed`.
+
+#### `actions/auth.ts`
+- `initiateOAuth(provider)` — Server Action. Calls `auth.signInWithOAuth(provider, { redirectTo: '<NEXT_PUBLIC_APP_URL>/api/auth/callback', skipBrowserRedirect: true })`. Stores `codeVerifier` in `insforge_code_verifier` cookie, then `redirect(data.url)`.
+- `signOut()` — Server Action. Wraps `auth.signOut()`.
+- Constraints: only "google" and "github" are accepted (the enabled providers in this project).
 
 ---
 

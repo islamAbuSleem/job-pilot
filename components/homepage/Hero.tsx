@@ -2,11 +2,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 type Props = {
-  primaryHref: string;
-  secondaryHref: string;
+  isAuthed: boolean;
 };
 
-export function Hero({ primaryHref, secondaryHref }: Props) {
+export function Hero({ isAuthed }: Props) {
+  const primaryHref = isAuthed ? "/dashboard" : "/login";
+  const secondaryHref = "/find-jobs";
+
   return (
     <section className="relative overflow-hidden">
       <div

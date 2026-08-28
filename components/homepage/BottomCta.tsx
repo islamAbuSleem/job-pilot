@@ -2,11 +2,12 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 type Props = {
-  primaryHref: string;
-  secondaryHref: string;
+  isAuthed: boolean;
 };
 
-export function BottomCta({ primaryHref, secondaryHref }: Props) {
+export function BottomCta({ isAuthed }: Props) {
+  const primaryHref = isAuthed ? "/dashboard" : "/login";
+
   return (
     <section className="relative overflow-hidden">
       <div
@@ -37,7 +38,7 @@ export function BottomCta({ primaryHref, secondaryHref }: Props) {
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            href={secondaryHref}
+            href="/find-jobs"
             className="inline-flex items-center rounded-md px-5 py-2.5 bg-surface border border-border text-text-primary text-[14px] font-medium hover:bg-surface-secondary transition-colors"
           >
             Find Your First Match
