@@ -1,18 +1,21 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { createAuthActions } from "@insforge/sdk/ssr";
 import { POST_AUTH_COOKIE, sanitizeNextPath } from "@/lib/auth-redirect";
 
 type OAuthProvider = "google" | "github";
+
+type InitiateOAuthResult =
+  | { success: true; url: string }
+  | { success: false; error: string };
 
 const POST_AUTH_MAX_AGE = 600;
 
 export async function initiateOAuth(
   provider: OAuthProvider,
   nextPath?: string,
-) {
+): Promise<InitiateOAuthResult> {
   const cookieStore = await cookies();
   const auth = createAuthActions({ cookies: cookieStore });
 
@@ -56,7 +59,7 @@ export async function initiateOAuth(
     cookieStore.delete(POST_AUTH_COOKIE);
   }
 
-  redirect(data.url);
+  return { success: true, url: data.url };
 }
 
 export async function signOut() {

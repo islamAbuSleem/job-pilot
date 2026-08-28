@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { initiateOAuth } from "@/actions/auth";
 
+const GENERIC_ERROR = "Sign-in failed. Please try again.";
+
 type Provider = "google" | "github";
 
 type Props = {
@@ -62,17 +64,38 @@ const PROVIDERS: {
 
 export function OAuthButtons({ nextPath }: Props) {
   const [pending, setPending] = useState<Provider | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   function handleClick(provider: Provider) {
+    setError(null);
     setPending(provider);
-    startTransition(() => {
-      void initiateOAuth(provider, nextPath);
+    startTransition(async () => {
+      try {
+        const result = await initiateOAuth(provider, nextPath);
+        if (result.success) {
+          window.location.assign(result.url);
+          return;
+        }
+        setError(GENERIC_ERROR);
+      } catch {
+        setError(GENERIC_ERROR);
+      }
+      setPending(null);
     });
   }
 
   return (
     <div className="flex flex-col gap-3">
+      {error ? (
+        <div
+          role="alert"
+          className="rounded-md border border-border bg-surface-secondary px-3 py-2 text-[13px] text-error"
+        >
+          {error}
+        </div>
+      ) : null}
+
       {PROVIDERS.map((p) => {
         const Icon = p.icon;
         const isLoading = pending === p.id;
