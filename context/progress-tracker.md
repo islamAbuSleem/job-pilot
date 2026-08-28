@@ -60,6 +60,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - InsForge's browser client is read-only for auth; all mutations (OAuth init, code exchange, sign-out) go through `createAuthActions()` in Server Actions / Route Handlers.
 - Homepage auth state is read on the server by checking the `insforge_access_token` cookie — no client-side flash. The cookie check happens in `app/page.tsx` (Server Component) and is passed down to `Navbar`/`Hero`/`BottomCta` as an `isAuthed` prop.
 - InsForge config: added `http://localhost:3000/api/auth/callback` to `allowed_redirect_urls` via `npx -y @insforge/cli config apply --auto-approve`. Add prod URL the same way before deploy.
+- `initiateOAuth` returns `{ success, url }` instead of calling `redirect()`. `OAuthButtons` awaits the result, navigates with `window.location.assign(url)` on success, and shows an error alert on failure. Server-side `redirect()` threw `NEXT_REDIRECT`, which the discarded `void` promise turned into an unhandled rejection and error tracking noise, and which also hid the action's `{ success: false }` failure path from the user.
 
 ## Notes
 
