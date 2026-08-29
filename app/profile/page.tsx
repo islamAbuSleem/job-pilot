@@ -9,6 +9,32 @@ export default async function ProfilePage() {
   const { data: { user } } = await insforge.auth.getCurrentUser();
   const { data: profile } = user ? await insforge.database.from("profiles").select("*").eq("id", user.id).single() : { data: null } as never;
 
+  let signedResumeUrl: string | null = null;
+  if (profile?.resume_pdf_url) {
+    const stored = String(profile.resume_pdf_url);
+    let path = stored;
+    if (stored.startsWith("http")) {
+      try {
+        const url = new URL(stored);
+        const idx = url.pathname.indexOf("/resumes/");
+        if (idx !== -1) {
+          path = decodeURIComponent(url.pathname.slice(idx + "/resumes/".length));
+        } else {
+          const parts = url.pathname.split("/");
+          const last = parts[parts.length - 1];
+          if (last) path = `${user?.id ?? ""}/${last}`;
+        }
+      } catch {
+        path = stored;
+      }
+    }
+    if (path && user) {
+      const { data } = await insforge.storage.from("resumes").createSignedUrl(path, 3600);
+      signedResumeUrl = data?.signedUrl ?? null;
+      if (!signedResumeUrl) signedResumeUrl = stored.startsWith("http") ? stored : null;
+    }
+  }
+
   const initialData = profile
     ? {
         personal: {
@@ -97,7 +123,7 @@ export default async function ProfilePage() {
       <Navbar isAuthed={isAuthed} />
       <main className="flex-1 w-full">
         <div className="mx-auto max-w-[1440px] px-8 py-12">
-          <ProfileEditor initialData={initialData} resumeUrl={profile?.resume_pdf_url ?? null} initialCompletion={completion} />
+          <ProfileEditor initialData={initialData} resumeUrl={signedResumeUrl} initialCompletion={completion} />
         </div>
       </main>
       <Footer />

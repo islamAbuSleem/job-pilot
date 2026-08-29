@@ -91,9 +91,8 @@ export async function saveProfile(formData: FormData): Promise<SaveProfileResult
         console.error("[actions/profile] upload failed", uploadError.message);
         return { success: false, error: "Failed to upload resume" };
       }
-      const { data: urlData } = insforge.storage.from("resumes").getPublicUrl(path);
-      resumePdfUrl = urlData?.publicUrl ?? null;
       void uploadData;
+      resumePdfUrl = path;
     }
 
     const completion = computeCompletion({
