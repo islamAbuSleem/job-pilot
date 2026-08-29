@@ -16,13 +16,19 @@ export default async function ProfilePage() {
     if (stored.startsWith("http")) {
       try {
         const url = new URL(stored);
-        const idx = url.pathname.indexOf("/resumes/");
-        if (idx !== -1) {
-          path = decodeURIComponent(url.pathname.slice(idx + "/resumes/".length));
+        const objIdx = url.pathname.indexOf("/objects/");
+        if (objIdx !== -1) {
+          path = decodeURIComponent(url.pathname.slice(objIdx + "/objects/".length));
         } else {
-          const parts = url.pathname.split("/");
-          const last = parts[parts.length - 1];
-          if (last) path = `${user?.id ?? ""}/${last}`;
+          const idx = url.pathname.indexOf("/resumes/");
+          if (idx !== -1) {
+            const after = url.pathname.slice(idx + "/resumes/".length);
+            path = decodeURIComponent(after.replace(/^objects\//, ""));
+          } else {
+            const parts = url.pathname.split("/");
+            const last = parts[parts.length - 1];
+            if (last) path = `${user?.id ?? ""}/${decodeURIComponent(last)}`;
+          }
         }
       } catch {
         path = stored;
