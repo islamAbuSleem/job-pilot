@@ -94,7 +94,7 @@ Last updated: 2026-08-29
 | Shadow | none |
 | Accent usage | `text-error` / `bg-error-light` (pills), `var(--color-error)` stroke on CompletionRing |
 
-**Pattern notes:** Red-themed attention state — heading + AlertCircle icon in `text-error`, pills in `bg-error-light`/`text-error`. CompletionRing is inline SVG 120×120, stroke 8, `var(--color-surface-secondary)` track + `var(--color-error)` progress with `strokeLinecap round`, `-rotate-90`. Constants `COMPLETION_PERCENTAGE`/`MISSING_FIELDS` hardcoded with `// TODO: Feature 06`.
+**Pattern notes:** Red-themed attention state — heading + AlertCircle icon in `text-error`, pills in `bg-error-light`/`text-error`. CompletionRing is inline SVG 120×120, stroke 8, `var(--color-surface-secondary)` track + `var(--color-error)` progress with `strokeLinecap round`, `-rotate-90`. Constants `COMPLETION_PERCENTAGE`/`MISSING_FIELDS` hardcoded.
 
 #### `ResumeCard` — `components/profile/ResumeCard.tsx`
 File: `components/profile/ResumeCard.tsx`
@@ -146,12 +146,12 @@ Last updated: 2026-08-29
 | Text — primary | `text-text-primary` (title `text-[16px] font-semibold leading-6`) |
 | Text — secondary | `text-text-secondary` (subtext `text-[14px] leading-5`) |
 | Text — muted | — |
-| Spacing | `p-6` (card), `mt-1` (subtext), `mt-6` + `flex flex-col gap-8` (sections), `px-4 py-3` (Save), `gap-6` (outer stack with page) |
+| Spacing | `p-6` (card), `mt-1` (subtext), `mt-6` + `flex flex-col gap-8` (sections), `mt-8 border-t pt-6` (Save row), `px-4 py-3` (Save) |
 | Hover state | `hover:bg-accent-dark` (Save) |
 | Shadow | none |
 | Accent usage | `bg-accent text-accent-foreground` (Save) |
 
-**Pattern notes:** Owns `useState<FormData>` with screenshot mock data. Renders 5 section sub-components in order. Save is `console.log` stub (Feature 06).
+**Pattern notes:** Owns `useState<FormData>` with screenshot mock data. Renders 5 section sub-components in order. Save is inside card after `border-t` divider, full-width `bg-accent`. `console.log` stub will be replaced in Feature 06.
 
 #### `PersonalInfo` — `components/profile/sections/PersonalInfo.tsx`
 File: `components/profile/sections/PersonalInfo.tsx`
@@ -170,7 +170,7 @@ Last updated: 2026-08-29
 | Shadow | none |
 | Accent usage | focus ring only |
 
-**Pattern notes:** `grid-cols-1 md:grid-cols-2 gap-4`, Work Authorization spans `md:col-span-2`. Email `readOnly` with `bg-surface-secondary`. Select chevron via inline `data:image/svg+xml`.
+**Pattern notes:** `grid-cols-1 md:grid-cols-2 gap-4`, Work Authorization spans `md:col-span-2`. Email `readOnly` with `bg-surface-secondary`. Select chevron via `ChevronDown` icon `absolute right-3 text-text-muted` in `relative` wrapper.
 
 #### `ProfessionalInfo` — `components/profile/sections/ProfessionalInfo.tsx`
 File: `components/profile/sections/ProfessionalInfo.tsx`
@@ -208,7 +208,7 @@ Last updated: 2026-08-29
 | Shadow | none |
 | Accent usage | `text-accent` (Add role `+ Add role`), `text-accent focus:ring-accent` (checkbox) |
 
-**Pattern notes:** Dynamic rows, "+ Add role" hidden at 3 (arch `work_experience` max 3). Each role `rounded-lg border p-4`. End Date + checkbox stacked vertically in same column (`mt-2` checkbox below input), End Date `disabled:bg-surface-secondary` when `current`. Remove link `justify-end`.
+**Pattern notes:** Dynamic rows, "+ Add role" hidden at 3 (arch `work_experience` max 3). Each role `rounded-lg border p-4`. End Date label row is `flex justify-between` with checkbox `inline-flex gap-1.5 text-[12px]` on right; input `mt-1.5` below with `disabled:bg-surface-secondary` when `current`. Remove link `justify-end`.
 
 #### `Education` — `components/profile/sections/Education.tsx`
 File: `components/profile/sections/Education.tsx`
@@ -324,12 +324,12 @@ Last updated: 2026-08-29
 | Background | `bg-background` (page) |
 | Border | `border-border` (via child cards) |
 | Border radius | `rounded-2xl` (child cards) |
-| Text — primary | `text-text-primary` (`text-[32px] font-semibold leading-10` heading) |
-| Text — secondary | `text-text-secondary` (`text-[14px] leading-5` "Signed in as") |
-| Spacing | `py-12` (container), `px-8` (container), `mt-2` (subhead), `mt-8` (form stack), `gap-6` (form stack) |
+| Text — primary | `text-text-primary` (if heading present) |
+| Text — secondary | `text-text-secondary` |
+| Spacing | `py-12` (container), `px-8` (container), `gap-6` (form stack) |
 | Shadow | none |
 
-**Pattern notes:** Server Component. `main` is `flex-1 w-full` (full width); inner container `mx-auto max-w-[1440px] px-8 py-12` is centered. Form column is `mx-auto flex w-full max-w-[1080px] flex-col gap-6` — 1080px matches design's card width, centered with `mx-auto`, falls back to `w-full` on narrow viewports. Fixes prior `max-w-2xl` too-narrow bug.
+**Pattern notes:** Server Component. `main` is `flex-1 w-full` (full width); inner container `mx-auto max-w-[1440px] px-8 py-12` is centered. Form column is `mx-auto flex w-full max-w-[1080px] flex-col gap-6` — 1080px matches design's card width, centered with `mx-auto`, falls back to `w-full` on narrow viewports. No page heading — design starts directly with banner.
 
 #### `app/api/auth/logout/route.ts`
 - GET handler. Constructs a `NextResponse.redirect("/")` first so the redirect `Set-Cookie` headers ride on the same response, then calls `createAuthActions({ requestCookies, responseCookies }).signOut()` to clear `insforge_access_token` + `insforge_refresh_token`.
