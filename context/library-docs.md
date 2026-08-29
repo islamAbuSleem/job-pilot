@@ -706,6 +706,66 @@ export async function POST(req: NextRequest) {
 **Rules:**
 
 - Server-side only — never import in client components
-- `pdfData.text` is raw unformatted text — GPT-4o handles the structure extraction
+- `pdfData.text` is raw unformatted text — the LLM handles the structure extraction
 - Always handle parse errors — some PDFs are image-based and return empty text
-- If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+- **Vision fallback for empty/short text**: when extracted text is < 50 chars (or pdf-parse throws), rasterize the PDF pages with `lib/pdf-vision.ts` (pdfjs-dist + @napi-rs/canvas) and call `extractProfileFromResumeVision()` in `lib/openrouter.ts` with the multimodal model. Use `lib/pdf-vision.ts` as the canonical rasterizer — do NOT introduce `pdf-img-convert` (it pulls in `canvas` which requires a Windows native compile).
+
+---
+
+## pdfjs-dist
+
+**Check first:** Check AGENTS.md for an installed pdfjs-dist skill.
+
+### Rasterize PDF Pages for Vision Models
+
+```typescript
+import { rasterizePdfPages } from "@/lib/pdf-vision";
+
+const pages = await rasterizePdfPages(new Uint8Array(arrayBuffer));
+// pages[i].base64 is a PNG data string; pages[i].width/height are pixel dimensions
+```
+
+**Rules:**
+
+- Server-side only — never import in client components.
+- `lib/pdf-vision.ts` already wires up `pdfjs-dist/legacy/build/pdf.mjs` with a `@napi-rs/canvas` `NodeCanvasFactory`. Don't rebuild this.
+- `next.config.ts` lists `@napi-rs/canvas` and `pdfjs-dist` in `serverExternalPackages` — required because Turbopack cannot bundle the native binding. Keep both entries when bumping either package.
+- Caps: max 4 pages per document, max 1600 px on the longest side, scale 1.5 (auto-shrinks to fit the cap). Adjust only with a justified reason.
+
+---
+
+## @napi-rs/canvas
+
+**Use case:** Server-side canvas for PDF rasterization in Next.js Node runtime.
+
+**Why not `canvas`:** The `canvas` package requires a native compile (Visual Studio on Windows) — no prebuilt binaries for recent Node ABIs. `@napi-rs/canvas` ships prebuilt `.node` binaries and works out of the box.
+
+**Rules:**
+
+- Server-side only.
+- Already configured as `serverExternalPackages` in `next.config.ts` — do not remove.
+- Use `createCanvas(w, h)` then `.getContext("2d")`; buffer via `canvas.toBuffer("image/png")`.
+
+---
+
+## OpenRouter vision models
+
+When text-based extraction fails or yields too little content, the resume extract route falls back to a multimodal model.
+
+**Primary:** `google/gemma-4-31b-it:free` — set in `OPENROUTER_VISION_MODEL` in `lib/openrouter.ts`. Supports `image_url` content parts and `response_format: json_object`.
+
+**Pattern for vision extraction:**
+
+```typescript
+import { extractProfileFromResumeVision } from "@/lib/openrouter";
+
+const pages = await rasterizePdfPages(uint8); // [{ pageNumber, base64 }, ...]
+const result = await extractProfileFromResumeVision(pages);
+// result.data is the same JSON shape returned by extractProfileFromResumeWithRetry
+```
+
+**Rules:**
+
+- Pass each page as a separate `{ type: "image_url", image_url: { url: "data:image/png;base64,..." } }` content part. Don't concatenate pages into one image.
+- The same `SYSTEM_PROMPT` schema from `lib/openrouter.ts` applies — vision and text extraction must return identical shapes so the form-mapper in `ProfileEditor.tsx` doesn't need branching.
+- Keep the existing `maxRetries` semantics (default 2) for transient failures on free-tier providers.

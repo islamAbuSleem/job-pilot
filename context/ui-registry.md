@@ -258,7 +258,7 @@ Last updated: 2026-08-29
 | Border | `border-border` (via children) |
 | Spacing | `mx-auto w-full max-w-[1080px] flex-col gap-6` |
 
-**Pattern notes:** Client wrapper that lifts `resumeFile` state and `completion` ({percentage, missingFields}) and renders `AttentionBanner` + `ResumeCard` + `ProfileForm`. Passed `initialData`/`resumeUrl`/`initialCompletion` from Server Component. Keeps form and banner in sync via `onCompletionChange`.
+**Pattern notes:** Client wrapper that lifts `resumeFile` state, `completion` ({percentage, missingFields}), and `savedResumeUrl`/`savedResumePath`. Renders `AttentionBanner` + `ResumeCard` + `ProfileForm`. Passed `initialData`/`resumeUrl`/`initialCompletion` from Server Component. Keeps form and banner in sync via `onCompletionChange`. Receives `onSaved(result)` from `ProfileForm` after a successful save — when `result.resumeUploaded === true`, the editor clears `resumeFile` and updates `savedResumeUrl`/`savedResumePath` so the ResumeCard flips from "ready to upload" preview to the just-saved URL immediately (no `router.refresh()` needed).
 
 #### `ProfileCompletion` — `lib/profile-completion.ts`
 - `computeCompletion(profile): { percentage, missingFields, isComplete }` — 10 required checks, used in both Server Action and `AttentionBanner` for single source of truth.

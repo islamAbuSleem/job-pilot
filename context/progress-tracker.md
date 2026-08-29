@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 2 — Profile Page
-**Last completed:** 06 Profile Save Logic
-**Next:** 07 AI Profile Extraction from Resume
+**Last completed:** 07 AI Profile Extraction from Resume (text + vision fallback)
+**Next:** 08 Resume PDF Generation from Profile
 
 ---
 
@@ -25,7 +25,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 - [x] 05 Profile Page — Full UI
 - [x] 06 Profile Save Logic
-- [ ] 07 AI Profile Extraction from Resume
+- [x] 07 AI Profile Extraction from Resume
 - [ ] 08 Resume PDF Generation from Profile
 
 ### Phase 3 — Find Jobs Page
@@ -50,7 +50,13 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Decisions Made During Build
 
-### 01 Homepage
+### 06 Profile Save Logic
+- `actions/profile.ts:saveProfile()` returns `{ resumeUrl, resumePath, resumeUploaded }` on success (signed URL minted server-side). `ProfileForm.handleSave()` calls `onSaved(result)`; `ProfileEditor` updates `savedResumeUrl`/`savedResumePath` state and clears the local `resumeFile` preview. Bug fix: the ResumeCard now shows the saved PDF immediately after Save — previously it kept showing the local file / dropzone until a manual refresh.
+
+### 07 AI Profile Extraction from Resume
+- Vision fallback added. `pdf-parse` runs first; if it throws or returns < 50 chars, `lib/pdf-vision.ts` rasterizes the PDF (pdfjs-dist + @napi-rs/canvas) and `lib/openrouter.ts:extractProfileFromResumeVision()` calls `google/gemma-4-31b-it:free` with each page as a separate `image_url` content part. Same JSON schema as the text path, so `ProfileEditor` form-mapping needs no branching.
+- `next.config.ts` adds `pdfjs-dist` and `@napi-rs/canvas` to `serverExternalPackages` (Turbopack can't bundle the native binding).
+- `pdf-img-convert` was rejected — its `canvas` dep requires a Windows native compile with no prebuilt for current Node ABI. `@napi-rs/canvas` ships prebuilt `.node` binaries.
 - Logo and Hero/BottomCta backgrounds use inline `style` gradients — they cannot be expressed via `@theme` color tokens. Documented as the only place these decorative gradients appear.
 - Hero/BottomCta primary CTAs use `bg-text-primary` (dark) per the design, not `bg-accent`. Documented as the intended visual.
 

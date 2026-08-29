@@ -7,7 +7,7 @@ import { computeCompletion } from "@/lib/profile-completion";
 import { captureServerEvent } from "@/lib/posthog-server";
 
 export type SaveProfileResult =
-  | { success: true; isComplete: boolean; percentage: number }
+  | { success: true; isComplete: boolean; percentage: number; resumeUrl: string | null; resumePath: string | null; resumeUploaded: boolean }
   | { success: false; error: string; fieldErrors?: Record<string, string> };
 
 export async function saveProfile(formData: FormData): Promise<SaveProfileResult> {
@@ -163,7 +163,22 @@ export async function saveProfile(formData: FormData): Promise<SaveProfileResult
 
     revalidatePath("/profile");
 
-    return { success: true, isComplete: completion.isComplete, percentage: completion.percentage };
+    let signedResumeUrl: string | null = null;
+    if (resumePdfUrl) {
+      const { data: signedData } = await insforge.storage
+        .from("resumes")
+        .createSignedUrl(resumePdfUrl, 3600);
+      signedResumeUrl = signedData?.signedUrl ?? null;
+    }
+
+    return {
+      success: true,
+      isComplete: completion.isComplete,
+      percentage: completion.percentage,
+      resumeUrl: signedResumeUrl,
+      resumePath: resumePdfUrl,
+      resumeUploaded: Boolean(resumePdfUrl),
+    };
   } catch (error) {
     console.error("[actions/profile] saveProfile failed", error);
     return { success: false, error: "Failed to save profile" };

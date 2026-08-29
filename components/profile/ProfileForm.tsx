@@ -37,6 +37,7 @@ type Props = {
   resumeFile: File | null;
   onResumeFileChange: (file: File | null) => void;
   onCompletionChange?: (percentage: number, missing: string[]) => void;
+  onSaved?: (result: { resumeUploaded: boolean; resumeUrl: string | null; resumePath: string | null }) => void;
 };
 
 const DEFAULT_DATA: FormData = {
@@ -72,7 +73,7 @@ const DEFAULT_DATA: FormData = {
   },
 };
 
-export function ProfileForm({ initialData, resumeFile, onResumeFileChange, onCompletionChange }: Props) {
+export function ProfileForm({ initialData, resumeFile, onResumeFileChange, onCompletionChange, onSaved }: Props) {
   const [data, setData] = useState<FormData>(initialData ?? DEFAULT_DATA);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -128,7 +129,12 @@ export function ProfileForm({ initialData, resumeFile, onResumeFileChange, onCom
       const result = await saveProfile(fd);
       if (result.success) {
         setMessage({ type: "success", text: result.isComplete ? "Profile saved — complete!" : `Profile saved — ${result.percentage}% complete` });
-        if (resumeFile) onResumeFileChange(null);
+        if (resumeFile && !result.resumeUploaded) onResumeFileChange(null);
+        onSaved?.({
+          resumeUploaded: result.resumeUploaded,
+          resumeUrl: result.resumeUrl,
+          resumePath: result.resumePath,
+        });
         notifyCompletion(data);
       } else {
         setMessage({ type: "error", text: result.error });
