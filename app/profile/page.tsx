@@ -1,15 +1,11 @@
 import { cookies } from "next/headers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { createInsforgeServer } from "@/lib/insforge-server";
 import { AttentionBanner } from "@/components/profile/AttentionBanner";
 import { ResumeCard } from "@/components/profile/ResumeCard";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 
 export default async function ProfilePage() {
-  const insforge = await createInsforgeServer();
-  const { data: { user } } = await insforge.auth.getCurrentUser();
-
   const cookieStore = await cookies();
   const isAuthed = Boolean(
     cookieStore.get("insforge_access_token")?.value,
