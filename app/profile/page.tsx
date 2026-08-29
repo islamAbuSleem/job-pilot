@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { createInsforgeServer } from "@/lib/insforge-server";
@@ -5,9 +6,16 @@ import { ProfileEditor } from "@/components/profile/ProfileEditor";
 import { computeCompletion } from "@/lib/profile-completion";
 
 export default async function ProfilePage() {
+  const cookieStore = await cookies();
+  const isAuthed = Boolean(cookieStore.get("insforge_access_token")?.value);
+
   const insforge = await createInsforgeServer();
-  const { data: { user } } = await insforge.auth.getCurrentUser();
-  const { data: profile } = user ? await insforge.database.from("profiles").select("*").eq("id", user.id).single() : { data: null } as never;
+  const { data: authData } = await insforge.auth.getCurrentUser();
+  const user = authData?.user ?? null;
+
+  const { data: profile } = user
+    ? await insforge.database.from("profiles").select("*").eq("id", user.id).single()
+    : { data: null };
 
   let signedResumeUrl: string | null = null;
   if (profile?.resume_pdf_url) {
@@ -63,7 +71,7 @@ export default async function ProfilePage() {
           ? profile.work_experience.map((r: Record<string, unknown>, i: number) => ({
               id: String((r as { id?: string }).id ?? `we-${i}`),
               company: String((r as { company?: string }).company ?? ""),
-              job_title: String((r as { job_title?: string }).job_title ?? (r as { job_title?: string }).job_title ?? ""),
+              job_title: String((r as { job_title?: string }).job_title ?? ""),
               start_date: String((r as { start_date?: string }).start_date ?? ""),
               end_date: String((r as { end_date?: string }).end_date ?? ""),
               current: Boolean((r as { current?: boolean }).current),
@@ -121,8 +129,6 @@ export default async function ProfilePage() {
           job_titles_seeking: initialData.preferences.job_titles_seeking,
         },
   );
-
-  const isAuthed = Boolean(user);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

@@ -79,3 +79,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ### 02 Auth follow-up (rolled into 03 branch)
 - Added `app/profile/page.tsx` — placeholder that reads the current user via `createInsforgeServer().auth.getCurrentUser()` and renders a "Coming soon" card with a Sign-out link to `/api/auth/logout`. Feature 05 will replace this with the real form.
 - Sign-out lives at `app/api/auth/logout/route.ts` (GET handler), not a `/logout` page. The Server Component version (`app/(auth)/logout/page.tsx`) was deleted because in Next.js 16 cookies are read-only in Server Components — `createAuthActions` threw "Cookies can only be modified in a Server Action or Route Handler." The Route Handler uses the request/response cookie split, clears both auth cookies, and redirects to `/`.
+
+### 05 Profile crash fix
+- `app/profile/page.tsx` called `insforge.auth.getCurrentUser()` and destructured `data.user` two levels deep with no guard. When `data` was `undefined` the server render threw `TypeError: Cannot read properties of undefined`, which took down the whole route. Removed the call — `user` was never used and `isAuthed` comes from the `insforge_access_token` cookie. This also dropped the now-unused `createInsforgeServer` import.
+- Added `app/profile/error.tsx` — a route-level error boundary. A server error now degrades only `/profile` instead of the whole app, and reports the exception through `posthog.captureException`.

@@ -357,6 +357,14 @@ Last updated: 2026-08-29
 
 ---
 
+## Profile Error Boundary
+
+**File:** `app/profile/error.tsx`
+
+Route-level error boundary for `/profile`. Renders a centered card (`AlertCircle` + heading + body + "Try again" button) when the route render fails, and reports the exception through `posthog.captureException` (same env guard as `app/global-error.tsx`). Keeps a server error scoped to the route instead of the whole app.
+
+---
+
 ## Patterns
 
 ### Logo Mark (used in Navbar + Footer)
