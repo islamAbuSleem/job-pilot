@@ -17,7 +17,7 @@ type Props = {
   onChange: (roles: WorkExperienceRole[]) => void;
 };
 
-const MAX_ROLES = 3;
+const MAX_ROLES = 10;
 
 const inputClass =
   "w-full rounded-md border border-border bg-surface px-3 py-2 text-[14px] leading-5 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent";

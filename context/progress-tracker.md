@@ -52,6 +52,11 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### 06 Profile Save Logic
 - `actions/profile.ts:saveProfile()` returns `{ resumeUrl, resumePath, resumeUploaded }` on success (signed URL minted server-side). `ProfileForm.handleSave()` calls `onSaved(result)`; `ProfileEditor` updates `savedResumeUrl`/`savedResumePath` state and clears the local `resumeFile` preview. Bug fix: the ResumeCard now shows the saved PDF immediately after Save — previously it kept showing the local file / dropzone until a manual refresh.
+- Loosened `profileSchema` (lib/profile-validation.ts): `work_experience.max(3)` → `.max(10)` to match the `WorkExperience` UI section (also bumped from 3 → 10) and accept real resumes with 5–15 roles. `job_titles_seeking.min(1)` → `.default([])` because a resume that only lists past experience has no "seeking" titles, and that gap shouldn't block saving. The completion check still nudges users to fill seeking titles — it just no longer prevents the save.
+
+### 06 Profile Save Logic — form sync bug
+- `ProfileEditor` listens for the `resume-extracted` window event and calls `setFormData(mapped)` on its own state, passing the result down as `initialData={formData}` to `ProfileForm`. But `ProfileForm` initialized its internal `data` state once at mount via `useState<FormData>(initialData ?? DEFAULT_DATA)` and never re-synced when the parent's `initialData` prop changed — so the visible form fields kept showing pre-extraction values despite extraction succeeding server-side.
+- Fix: added `useEffect(() => { setData(initialData ?? DEFAULT_DATA); }, [initialData])` in `ProfileForm` so it stays in sync with whatever the parent hands down.
 
 ### 07 AI Profile Extraction from Resume
 - Vision fallback added. `pdf-parse` runs first; if it throws or returns < 50 chars, `lib/pdf-vision.ts` rasterizes the PDF (pdfjs-dist + @napi-rs/canvas) and `lib/openrouter.ts:extractProfileFromResumeVision()` calls `google/gemma-4-31b-it:free` with each page as a separate `image_url` content part. Same JSON schema as the text path, so `ProfileEditor` form-mapping needs no branching.
