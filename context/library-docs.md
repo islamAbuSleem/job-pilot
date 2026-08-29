@@ -772,8 +772,9 @@ const result = await extractProfileFromResumeVision(pages);
 
 **Primary / fallback model chain:**
 
-- Text extraction: `OPENROUTER_MODEL` (currently `inclusionai/ling-3.0-flash-fin:free`) → `OPENROUTER_FALLBACK_MODEL` (`openrouter/free`). The earlier `qwen/qwen-2.5-72b-instruct:free` was retired by the provider (returns 404 "no longer free").
-- Vision extraction: `OPENROUTER_VISION_MODEL` (`google/gemma-4-31b-it:free`) → `OPENROUTER_FALLBACK_MODEL`.
-- `callExtractionWithFallback()` in `lib/openrouter.ts` only chains to the fallback on transient/model-availability errors (404/429/"no endpoints"). Programming errors (auth, schema) bubble up immediately.
-- Free-tier models are subject to daily quotas (50/day for the lowest tier). When the primary model 429s, the user still gets a successful extraction via the fallback. If both fail, the route returns 502 with an actionable message — not a generic "Failed to extract profile from resume."
+- Text extraction: `OPENROUTER_MODEL` (currently `inclusionai/ling-3.0-flash-fin:free`) → `OPENROUTER_FALLBACK_MODEL` (`openrouter/free`) → `OPENROUTER_SECONDARY_TEXT_MODEL` (`nvidia/nemotron-3.5-lightning:free`). The earlier `qwen/qwen-2.5-72b-instruct:free` was retired by the provider (returns 404 "no longer free").
+- Vision extraction: `OPENROUTER_VISION_MODEL` (`google/gemma-4-31b-it:free`) → `OPENROUTER_FALLBACK_MODEL`. Vision does not use the secondary text model — image input is not supported by all candidates.
+- `callExtractionWithFallback()` in `lib/openrouter.ts` chains models only on transient/model-availability errors (404/429/"no endpoints"/"failed to parse"). Programming errors (auth, schema) bubble up immediately.
+- `parseLenientJson()` strips ```json fences and finds the first balanced `{...}` span before giving up. Some free models wrap JSON in markdown despite `response_format: json_object` — this salvages those responses.
+- Free-tier models are subject to daily quotas (50/day for the lowest tier). When the primary model 429s, the user still gets a successful extraction via a fallback. If all models in the chain return 429 or unparseable JSON, the route returns 502 with `error: "Our AI service has hit its daily free-tier limit. Please try again tomorrow, or fill the profile fields manually below."` — not a generic "Failed to extract profile from resume."
 - Before changing any model constant, verify it's still listed at `https://openrouter.ai/api/v1/models` with `pricing.prompt === 0` and `pricing.completion === 0`. Free models get retired frequently.

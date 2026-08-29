@@ -62,6 +62,12 @@ Update this file after every completed feature. Any AI agent reading this should
 - **Model rotation**: `qwen/qwen-2.5-72b-instruct:free` was retired by the provider (returns 404 "no longer free"). Swapped to `inclusionai/ling-3.0-flash-fin:free` and added `openrouter/free` as a fallback chain (`callExtractionWithFallback()`). Fallback fires only on transient/model-availability errors (404/429/"no endpoints"). Both text and vision extraction paths use the same fallback.
 - **DataCloneError fix**: pdfjs's worker couldn't transfer the user's PDF buffer inside Next.js dev (Turbopack module isolation proxies the ArrayBuffer). Fixed in `lib/pdf-vision.ts` by copying into a fresh `Uint8Array(uint8.byteLength)` before passing to `pdfjs.getDocument({ data })`. Always do this — pdfjs's worker rejects proxied buffers.
 - **Better error UX**: 5xx errors now include actionable messages (mention the file may be malformed or the AI service is unavailable) instead of generic "Failed to extract profile from resume." Verified working end-to-end against `Islam-Abusleem-Resume.pdf` (vision path).
+
+### 07 follow-up 2 — lenient JSON + third fallback
+- The fallback `openrouter/free` was returning JSON wrapped in markdown fences despite `response_format: json_object`, so `JSON.parse` failed and the user saw "Failed to parse model response as JSON." Added `parseLenientJson()` in `lib/openrouter.ts` — tries direct parse → strips ```json fences → finds the first balanced `{...}` span. Now salvageable on the next try instead of throwing.
+- Added `OPENROUTER_SECONDARY_TEXT_MODEL = "nvidia/nemotron-3.5-lightning:free"` as a third hop in the text chain. Distinct provider pool, separate daily quota — works when ling is rate-limited.
+- When all models in the chain are 429'd, the route now returns 502 with `"Our AI service has hit its daily free-tier limit. Please try again tomorrow, or fill the profile fields manually below."` instead of leaking the JSON-parse error.
+- Re-verified end-to-end with `Islam-Abusleem-Resume.pdf` after ling hit its daily quota — succeeded via nemotron, returned full profile (name, email, phone, location, skills, etc.).
 - Logo and Hero/BottomCta backgrounds use inline `style` gradients — they cannot be expressed via `@theme` color tokens. Documented as the only place these decorative gradients appear.
 - Hero/BottomCta primary CTAs use `bg-text-primary` (dark) per the design, not `bg-accent`. Documented as the intended visual.
 

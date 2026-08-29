@@ -51,20 +51,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (!textExtractionFailed && extractedText && extractedText.length >= 50) {
-const result = await extractProfileFromResumeWithRetry(extractedText);
-    if (!result.success) {
-      console.error("[extract] text extraction failed:", result.error);
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            result.error ??
-            "We couldn't read the structured data from your resume. The AI service may be temporarily unavailable — please try again in a moment.",
-        },
-        { status: 502 }
-      );
-    }
-    return NextResponse.json({ success: true, data: result.data, source: "text" });
+      const result = await extractProfileFromResumeWithRetry(extractedText);
+      if (!result.success) {
+        console.error("[extract] text extraction failed:", result.error);
+        return NextResponse.json(
+          {
+            success: false,
+            error: result.rateLimited
+              ? "Our AI service has hit its daily free-tier limit. Please try again tomorrow, or fill the profile fields manually below."
+              : result.error ??
+                "We couldn't read the structured data from your resume. The AI service may be temporarily unavailable — please try again in a moment.",
+          },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json({ success: true, data: result.data, source: "text" });
     }
 
     // Text extraction failed or returned too little — fall back to a vision-capable model.
@@ -103,9 +104,10 @@ const result = await extractProfileFromResumeWithRetry(extractedText);
       return NextResponse.json(
         {
           success: false,
-          error:
-            visionResult.error ??
-            "We couldn't read your resume, even with our vision fallback. The PDF may be malformed or the AI service is temporarily unavailable — please try a different file.",
+          error: visionResult.rateLimited
+            ? "Our AI service has hit its daily free-tier limit. Please try again tomorrow, or fill the profile fields manually below."
+            : visionResult.error ??
+              "We couldn't read your resume, even with our vision fallback. The PDF may be malformed or the AI service is temporarily unavailable — please try a different file.",
         },
         { status: 502 },
       );

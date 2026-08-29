@@ -3,6 +3,7 @@ import OpenAI from "openai";
 export const OPENROUTER_MODEL = "inclusionai/ling-3.0-flash-fin:free";
 export const OPENROUTER_VISION_MODEL = "google/gemma-4-31b-it:free";
 export const OPENROUTER_FALLBACK_MODEL = "openrouter/free";
+export const OPENROUTER_SECONDARY_TEXT_MODEL = "nvidia/nemotron-3.5-lightning:free";
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 let cachedClient: OpenAI | null = null;
@@ -73,75 +74,181 @@ Rules:
 - skills/industries/job_titles_seeking/preferred_locations as arrays of strings
 - If information is not in resume, use empty string/array`;
 
-type ChatContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
+type ChatContent =
+  | string
+  | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
 
 type ExtractionParams = {
   primaryModel: string;
   userContent: ChatContent;
+  vision?: boolean;
 };
 
-type ExtractionResult = {
+export type ExtractionResult = {
   success: boolean;
   data?: Record<string, unknown>;
   error?: string;
+  rateLimited?: boolean;
 };
 
 function isModelNotFound(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return msg.includes("404") || msg.toLowerCase().includes("not available") || msg.toLowerCase().includes("no endpoints");
+  return (
+    msg.includes("404") ||
+    msg.toLowerCase().includes("not available") ||
+    msg.toLowerCase().includes("no endpoints")
+  );
 }
 
 function isRateLimited(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return msg.includes("429") || msg.toLowerCase().includes("rate limit");
+  return msg.includes("429") || msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("quota");
 }
 
-async function callExtractionWithFallback({ primaryModel, userContent }: ExtractionParams): Promise<ExtractionResult> {
-  const client = getClient();
-  const models = [primaryModel, OPENROUTER_FALLBACK_MODEL].filter((m, i, a) => a.indexOf(m) === i);
+/**
+ * Some free-tier models wrap JSON in ```json ... ``` fences or prefix it with
+ * prose despite response_format: json_object. Try a direct parse, then strip
+ * fences, then locate the first balanced {...} span.
+ */
+function parseLenientJson(content: string): Record<string, unknown> | null {
+  const trimmed = content.trim();
 
-  let lastError: string | undefined;
+  try {
+    const v = JSON.parse(trimmed);
+    if (v && typeof v === "object") return v as Record<string, unknown>;
+  } catch {
+    /* fall through */
+  }
 
-  for (const model of models) {
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fence) {
     try {
-      const response = await client.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userContent as never },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 2000,
-      });
+      const v = JSON.parse(fence[1]);
+      if (v && typeof v === "object") return v as Record<string, unknown>;
+    } catch {
+      /* fall through */
+    }
+  }
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        lastError = "No content returned from model";
+  const start = trimmed.indexOf("{");
+  if (start !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = start; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (escape) {
+        escape = false;
         continue;
       }
-
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        lastError = "Failed to parse model response as JSON";
+      if (ch === "\\") {
+        escape = true;
         continue;
       }
-
-      return { success: true, data: parsed };
-    } catch (error) {
-      console.error(`[openrouter] ${model} failed:`, error);
-      lastError = error instanceof Error ? error.message : "Extraction failed";
-      // Only fall through to the next model for transient/model-availability errors.
-      // Programming errors (auth, validation) should bubble up immediately.
-      if (!isModelNotFound(error) && !isRateLimited(error)) {
-        return { success: false, error: lastError };
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = trimmed.slice(start, i + 1);
+          try {
+            const v = JSON.parse(candidate);
+            if (v && typeof v === "object") return v as Record<string, unknown>;
+          } catch {
+            /* fall through */
+          }
+          break;
+        }
       }
     }
   }
 
-  return { success: false, error: lastError ?? "Extraction failed" };
+  return null;
+}
+
+async function callOneModel(
+  client: OpenAI,
+  model: string,
+  userContent: ChatContent,
+): Promise<ExtractionResult> {
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userContent as never },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+      max_tokens: 2000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      return { success: false, error: `No content returned from ${model}` };
+    }
+
+    const parsed = parseLenientJson(content);
+    if (!parsed) {
+      return {
+        success: false,
+        error: `Failed to parse ${model} response as JSON`,
+      };
+    }
+
+    return { success: true, data: parsed };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[openrouter] ${model} failed:`, message);
+    return {
+      success: false,
+      error: message,
+      rateLimited: isRateLimited(error) || isModelNotFound(error),
+    };
+  }
+}
+
+async function callExtractionWithFallback({
+  primaryModel,
+  userContent,
+  vision = false,
+}: ExtractionParams): Promise<ExtractionResult> {
+  const client = getClient();
+  const chain = vision
+    ? [primaryModel, OPENROUTER_FALLBACK_MODEL]
+    : [primaryModel, OPENROUTER_FALLBACK_MODEL, OPENROUTER_SECONDARY_TEXT_MODEL];
+  const models = chain.filter((m, i, a) => Boolean(m) && a.indexOf(m) === i) as string[];
+
+  let lastError: string | undefined;
+  let anyRateLimited = false;
+
+  for (const model of models) {
+    const result = await callOneModel(client, model, userContent);
+    if (result.success) {
+      return result;
+    }
+    lastError = result.error;
+    if (result.rateLimited) anyRateLimited = true;
+    // Stop early on non-availability errors (auth, malformed payload) — those
+    // won't be fixed by trying another model.
+    if (
+      result.error &&
+      !result.rateLimited &&
+      !result.error.startsWith("Failed to parse")
+    ) {
+      return result;
+    }
+  }
+
+  return {
+    success: false,
+    error: lastError ?? "Extraction failed",
+    rateLimited: anyRateLimited,
+  };
 }
 
 export async function extractProfileFromResume(resumeText: string): Promise<ExtractionResult> {
@@ -154,6 +261,7 @@ export async function extractProfileFromResumeWithRetry(
   maxRetries = 2
 ): Promise<ExtractionResult> {
   let lastError: string | undefined;
+  let lastRateLimited = false;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const result = await extractProfileFromResume(resumeText);
@@ -161,13 +269,18 @@ export async function extractProfileFromResumeWithRetry(
       return result;
     }
     lastError = result.error;
+    if (result.rateLimited) lastRateLimited = true;
     if (attempt < maxRetries) {
       console.log(`[openrouter] Extraction attempt ${attempt + 1} failed: ${result.error}. Retrying...`);
       await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
   }
 
-  return { success: false, error: lastError ?? "Failed after retries" };
+  return {
+    success: false,
+    error: lastError ?? "Failed after retries",
+    rateLimited: lastRateLimited,
+  };
 }
 
 export type VisionPage = { pageNumber: number; base64: string };
@@ -186,5 +299,9 @@ export async function extractProfileFromResumeVision(pages: VisionPage[]): Promi
     { type: "text", text: "Return only the JSON object matching the schema." },
   ];
 
-  return callExtractionWithFallback({ primaryModel: OPENROUTER_VISION_MODEL, userContent: imageContent });
+  return callExtractionWithFallback({
+    primaryModel: OPENROUTER_VISION_MODEL,
+    userContent: imageContent,
+    vision: true,
+  });
 }
