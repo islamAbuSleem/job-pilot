@@ -39,8 +39,17 @@ export async function rasterizePdfPages(uint8: Uint8Array): Promise<RasterizedPa
 
   const factory = new NodeCanvasFactory();
 
+  // Copy into a fresh Uint8Array so the underlying ArrayBuffer has a single,
+  // known owner. When this module runs inside Next.js dev (Turbopack module
+  // isolation), the original buffer can carry a proxy that the pdfjs worker
+  // can't structured-clone, raising "DataCloneError: Cannot transfer object
+  // of unsupported type." A plain slice() with a brand-new buffer is always
+  // transferable across the worker boundary.
+  const data = new Uint8Array(uint8.byteLength);
+  data.set(uint8);
+
   const loadingTask = pdfjs.getDocument({
-    data: uint8,
+    data,
     disableFontFace: true,
     isEvalSupported: false,
     useSystemFonts: false,

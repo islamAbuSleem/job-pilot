@@ -51,14 +51,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (!textExtractionFailed && extractedText && extractedText.length >= 50) {
-      const result = await extractProfileFromResumeWithRetry(extractedText);
-      if (!result.success) {
-        return NextResponse.json(
-          { success: false, error: result.error ?? "Failed to extract profile from resume" },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json({ success: true, data: result.data, source: "text" });
+const result = await extractProfileFromResumeWithRetry(extractedText);
+    if (!result.success) {
+      console.error("[extract] text extraction failed:", result.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            result.error ??
+            "We couldn't read the structured data from your resume. The AI service may be temporarily unavailable — please try again in a moment.",
+        },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ success: true, data: result.data, source: "text" });
     }
 
     // Text extraction failed or returned too little — fall back to a vision-capable model.
@@ -93,14 +99,15 @@ export async function POST(req: NextRequest) {
     );
 
     if (!visionResult.success) {
+      console.error("[extract] vision extraction failed:", visionResult.error);
       return NextResponse.json(
         {
           success: false,
           error:
             visionResult.error ??
-            "Vision extraction failed. The PDF may be too complex or the service is temporarily unavailable.",
+            "We couldn't read your resume, even with our vision fallback. The PDF may be malformed or the AI service is temporarily unavailable — please try a different file.",
         },
-        { status: 500 },
+        { status: 502 },
       );
     }
 

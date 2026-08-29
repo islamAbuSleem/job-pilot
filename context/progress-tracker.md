@@ -57,6 +57,11 @@ Update this file after every completed feature. Any AI agent reading this should
 - Vision fallback added. `pdf-parse` runs first; if it throws or returns < 50 chars, `lib/pdf-vision.ts` rasterizes the PDF (pdfjs-dist + @napi-rs/canvas) and `lib/openrouter.ts:extractProfileFromResumeVision()` calls `google/gemma-4-31b-it:free` with each page as a separate `image_url` content part. Same JSON schema as the text path, so `ProfileEditor` form-mapping needs no branching.
 - `next.config.ts` adds `pdfjs-dist` and `@napi-rs/canvas` to `serverExternalPackages` (Turbopack can't bundle the native binding).
 - `pdf-img-convert` was rejected — its `canvas` dep requires a Windows native compile with no prebuilt for current Node ABI. `@napi-rs/canvas` ships prebuilt `.node` binaries.
+
+### 07 follow-up — vision-fallback + model rotation
+- **Model rotation**: `qwen/qwen-2.5-72b-instruct:free` was retired by the provider (returns 404 "no longer free"). Swapped to `inclusionai/ling-3.0-flash-fin:free` and added `openrouter/free` as a fallback chain (`callExtractionWithFallback()`). Fallback fires only on transient/model-availability errors (404/429/"no endpoints"). Both text and vision extraction paths use the same fallback.
+- **DataCloneError fix**: pdfjs's worker couldn't transfer the user's PDF buffer inside Next.js dev (Turbopack module isolation proxies the ArrayBuffer). Fixed in `lib/pdf-vision.ts` by copying into a fresh `Uint8Array(uint8.byteLength)` before passing to `pdfjs.getDocument({ data })`. Always do this — pdfjs's worker rejects proxied buffers.
+- **Better error UX**: 5xx errors now include actionable messages (mention the file may be malformed or the AI service is unavailable) instead of generic "Failed to extract profile from resume." Verified working end-to-end against `Islam-Abusleem-Resume.pdf` (vision path).
 - Logo and Hero/BottomCta backgrounds use inline `style` gradients — they cannot be expressed via `@theme` color tokens. Documented as the only place these decorative gradients appear.
 - Hero/BottomCta primary CTAs use `bg-text-primary` (dark) per the design, not `bg-accent`. Documented as the intended visual.
 

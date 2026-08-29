@@ -731,6 +731,7 @@ const pages = await rasterizePdfPages(new Uint8Array(arrayBuffer));
 - `lib/pdf-vision.ts` already wires up `pdfjs-dist/legacy/build/pdf.mjs` with a `@napi-rs/canvas` `NodeCanvasFactory`. Don't rebuild this.
 - `next.config.ts` lists `@napi-rs/canvas` and `pdfjs-dist` in `serverExternalPackages` — required because Turbopack cannot bundle the native binding. Keep both entries when bumping either package.
 - Caps: max 4 pages per document, max 1600 px on the longest side, scale 1.5 (auto-shrinks to fit the cap). Adjust only with a justified reason.
+- **Always copy the input Uint8Array into a fresh `Uint8Array(uint8.byteLength)` + `data.set(uint8)` before passing it to `pdfjs.getDocument({ data })`.** Inside Next.js dev (Turbopack module isolation), the original buffer carries a proxy that pdfjs's worker can't structured-clone — `DataCloneError: Cannot transfer object of unsupported type`. A fresh slice with a brand-new ArrayBuffer is always transferable across the worker boundary. This is already done in `lib/pdf-vision.ts`; do not "optimize" it away.
 
 ---
 
@@ -768,4 +769,11 @@ const result = await extractProfileFromResumeVision(pages);
 
 - Pass each page as a separate `{ type: "image_url", image_url: { url: "data:image/png;base64,..." } }` content part. Don't concatenate pages into one image.
 - The same `SYSTEM_PROMPT` schema from `lib/openrouter.ts` applies — vision and text extraction must return identical shapes so the form-mapper in `ProfileEditor.tsx` doesn't need branching.
-- Keep the existing `maxRetries` semantics (default 2) for transient failures on free-tier providers.
+
+**Primary / fallback model chain:**
+
+- Text extraction: `OPENROUTER_MODEL` (currently `inclusionai/ling-3.0-flash-fin:free`) → `OPENROUTER_FALLBACK_MODEL` (`openrouter/free`). The earlier `qwen/qwen-2.5-72b-instruct:free` was retired by the provider (returns 404 "no longer free").
+- Vision extraction: `OPENROUTER_VISION_MODEL` (`google/gemma-4-31b-it:free`) → `OPENROUTER_FALLBACK_MODEL`.
+- `callExtractionWithFallback()` in `lib/openrouter.ts` only chains to the fallback on transient/model-availability errors (404/429/"no endpoints"). Programming errors (auth, schema) bubble up immediately.
+- Free-tier models are subject to daily quotas (50/day for the lowest tier). When the primary model 429s, the user still gets a successful extraction via the fallback. If both fail, the route returns 502 with an actionable message — not a generic "Failed to extract profile from resume."
+- Before changing any model constant, verify it's still listed at `https://openrouter.ai/api/v1/models` with `pricing.prompt === 0` and `pricing.completion === 0`. Free models get retired frequently.

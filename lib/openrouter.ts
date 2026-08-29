@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 
-export const OPENROUTER_MODEL = "qwen/qwen-2.5-72b-instruct:free";
+export const OPENROUTER_MODEL = "inclusionai/ling-3.0-flash-fin:free";
 export const OPENROUTER_VISION_MODEL = "google/gemma-4-31b-it:free";
+export const OPENROUTER_FALLBACK_MODEL = "openrouter/free";
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 let cachedClient: OpenAI | null = null;
@@ -72,55 +73,86 @@ Rules:
 - skills/industries/job_titles_seeking/preferred_locations as arrays of strings
 - If information is not in resume, use empty string/array`;
 
-export async function extractProfileFromResume(
-  resumeText: string
-): Promise<{
+type ChatContent = string | Array<{ type: "text" | "image_url"; text?: string; image_url?: { url: string } }>;
+
+type ExtractionParams = {
+  primaryModel: string;
+  userContent: ChatContent;
+};
+
+type ExtractionResult = {
   success: boolean;
   data?: Record<string, unknown>;
   error?: string;
-}> {
-  const userPrompt = `Resume text:\n\n${resumeText}\n\nReturn only the JSON object.`;
+};
 
-  try {
-    const client = getClient();
-    const response = await client.chat.completions.create({
-      model: OPENROUTER_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-      max_tokens: 2000,
-    });
+function isModelNotFound(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes("404") || msg.toLowerCase().includes("not available") || msg.toLowerCase().includes("no endpoints");
+}
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      return { success: false, error: "No content returned from model" };
-    }
+function isRateLimited(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes("429") || msg.toLowerCase().includes("rate limit");
+}
 
-    let parsed: Record<string, unknown>;
+async function callExtractionWithFallback({ primaryModel, userContent }: ExtractionParams): Promise<ExtractionResult> {
+  const client = getClient();
+  const models = [primaryModel, OPENROUTER_FALLBACK_MODEL].filter((m, i, a) => a.indexOf(m) === i);
+
+  let lastError: string | undefined;
+
+  for (const model of models) {
     try {
-      parsed = JSON.parse(content);
-    } catch {
-      return { success: false, error: "Failed to parse model response as JSON" };
-    }
+      const response = await client.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userContent as never },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 2000,
+      });
 
-    return { success: true, data: parsed };
-  } catch (error) {
-    console.error("[openrouter] extraction failed:", error);
-    return { success: false, error: "Failed to extract profile from resume" };
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        lastError = "No content returned from model";
+        continue;
+      }
+
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        lastError = "Failed to parse model response as JSON";
+        continue;
+      }
+
+      return { success: true, data: parsed };
+    } catch (error) {
+      console.error(`[openrouter] ${model} failed:`, error);
+      lastError = error instanceof Error ? error.message : "Extraction failed";
+      // Only fall through to the next model for transient/model-availability errors.
+      // Programming errors (auth, validation) should bubble up immediately.
+      if (!isModelNotFound(error) && !isRateLimited(error)) {
+        return { success: false, error: lastError };
+      }
+    }
   }
+
+  return { success: false, error: lastError ?? "Extraction failed" };
+}
+
+export async function extractProfileFromResume(resumeText: string): Promise<ExtractionResult> {
+  const userPrompt = `Resume text:\n\n${resumeText}\n\nReturn only the JSON object.`;
+  return callExtractionWithFallback({ primaryModel: OPENROUTER_MODEL, userContent: userPrompt });
 }
 
 export async function extractProfileFromResumeWithRetry(
   resumeText: string,
   maxRetries = 2
-): Promise<{
-  success: boolean;
-  data?: Record<string, unknown>;
-  error?: string;
-}> {
+): Promise<ExtractionResult> {
   let lastError: string | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -140,76 +172,19 @@ export async function extractProfileFromResumeWithRetry(
 
 export type VisionPage = { pageNumber: number; base64: string };
 
-export async function extractProfileFromResumeVision(
-  pages: VisionPage[],
-  maxRetries = 2
-): Promise<{
-  success: boolean;
-  data?: Record<string, unknown>;
-  error?: string;
-}> {
+export async function extractProfileFromResumeVision(pages: VisionPage[]): Promise<ExtractionResult> {
   if (pages.length === 0) {
     return { success: false, error: "No pages to extract" };
   }
 
-  let lastError: string | undefined;
+  const imageContent: ChatContent = [
+    { type: "text", text: "Resume pages (read all visible text carefully, including headers, footers, and sidebars):" },
+    ...pages.map((p) => ({
+      type: "image_url" as const,
+      image_url: { url: `data:image/png;base64,${p.base64}` },
+    })),
+    { type: "text", text: "Return only the JSON object matching the schema." },
+  ];
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const client = getClient();
-      const imageContent = pages.map((p) => ({
-        type: "image_url" as const,
-        image_url: { url: `data:image/png;base64,${p.base64}` },
-      }));
-
-      const userContent = [
-        { type: "text" as const, text: "Resume pages (read all visible text carefully, including headers, footers, and sidebars):" },
-        ...imageContent,
-        { type: "text" as const, text: "Return only the JSON object matching the schema." },
-      ];
-
-      const response = await client.chat.completions.create({
-        model: OPENROUTER_VISION_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userContent as never },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 2000,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        lastError = "No content returned from vision model";
-        if (attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
-        }
-        return { success: false, error: lastError };
-      }
-
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        lastError = "Failed to parse vision model response as JSON";
-        if (attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
-        }
-        return { success: false, error: lastError };
-      }
-
-      return { success: true, data: parsed };
-    } catch (error) {
-      console.error(`[openrouter] vision extraction attempt ${attempt + 1} failed:`, error);
-      lastError = error instanceof Error ? error.message : "Vision extraction failed";
-      if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
-    }
-  }
-
-  return { success: false, error: lastError ?? "Failed after retries" };
+  return callExtractionWithFallback({ primaryModel: OPENROUTER_VISION_MODEL, userContent: imageContent });
 }
