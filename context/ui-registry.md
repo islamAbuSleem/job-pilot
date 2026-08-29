@@ -75,6 +75,179 @@ After building any component — update this file with the component name, file 
 - inner → `mx-auto max-w-[1440px] px-8 py-24 text-center`
 - Accepts `isAuthed: boolean` prop. Same href logic as Hero.
 
+### Profile
+
+#### `AttentionBanner` — `components/profile/AttentionBanner.tsx`
+File: `components/profile/AttentionBanner.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-2xl` (card), `rounded-sm` (missing-field pills) |
+| Text — primary | `text-error` (heading `text-[16px] font-semibold leading-6`), `text-text-primary` (body `text-[14px] leading-5`, ring `%` `text-[24px] font-semibold leading-7`) |
+| Text — secondary | `text-text-primary` (body), `text-error` (pills `text-[12px] font-medium leading-4`) |
+| Text — muted | `text-text-primary` used for body |
+| Spacing | `p-6` (card), `gap-6` (card flex), `gap-2` (heading + pills), `mt-2`/`mt-4` (body/pills) |
+| Hover state | none (static server component) |
+| Shadow | none |
+| Accent usage | `text-error` / `bg-error-light` (pills), `var(--color-error)` stroke on CompletionRing |
+
+**Pattern notes:** Red-themed attention state — heading + AlertCircle icon in `text-error`, pills in `bg-error-light`/`text-error`. CompletionRing is inline SVG 120×120, stroke 8, `var(--color-surface-secondary)` track + `var(--color-error)` progress with `strokeLinecap round`, `-rotate-90`. Constants `COMPLETION_PERCENTAGE`/`MISSING_FIELDS` hardcoded.
+
+#### `ResumeCard` — `components/profile/ResumeCard.tsx`
+File: `components/profile/ResumeCard.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card, Select button), `bg-surface-secondary` (dropzone idle, file row), `bg-accent-muted` (dropzone active), `bg-accent-light` (icon circle), `bg-accent` (Generate button) |
+| Border | `border border-border` (card, file row, Select button), `border border-dashed` (dropzone), `border-t border-border` (Generate separator) |
+| Border radius | `rounded-2xl` (card), `rounded-lg` (dropzone/file row), `rounded-full` (icon circle), `rounded-md` (buttons) |
+| Text — primary | `text-text-primary` (`text-[16px] font-semibold leading-6` title, `text-[14px] font-medium leading-5` upload line/file name) |
+| Text — secondary | `text-text-secondary` (subtext `text-[14px] leading-5`, Generate helper `text-[14px] leading-5`) |
+| Text — muted | `text-text-muted` (dropzone sub-line `text-[12px] leading-4`, file size `text-[12px] leading-4`), `text-error` (error `text-[13px] leading-5`) |
+| Spacing | `p-6` (card), `px-6 py-10` (dropzone), `px-4 py-3` (file row), `pt-6 mt-6` (Generate row), `gap-4` (Generate flex), `mt-2`/`mt-3` (upload texts) |
+| Hover state | `hover:bg-surface-secondary` (Select), `hover:bg-accent-dark` (Generate), `hover:text-text-primary hover:bg-surface` (clear X) |
+| Shadow | none |
+| Accent usage | `bg-accent-light text-accent` (icon circle), `border-accent bg-accent-muted` (drag active), `bg-accent text-accent-foreground` (Generate) |
+
+**Pattern notes:** Dropzone via `react-dropzone@20.1.1` (`accept pdf`, `maxSize 5MB`, `multiple false`, `noClick/noKeyboard` — Select button is click target). Conditional `border-accent`/`bg-accent-muted` when `isDragActive`. File row collapses dropzone. Generate `FileText` icon + `console.log` stub (Feature 08).
+
+#### `TagInput` — `components/profile/TagInput.tsx`
+File: `components/profile/TagInput.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (input, Add button), `bg-surface-secondary` (pills) |
+| Border | `border border-border` (input, Add button) |
+| Border radius | `rounded-md` (input, Add button, pills) |
+| Text — primary | `text-text-primary` (input `text-[14px] leading-5`, pills `text-[12px] font-medium leading-4`) |
+| Text — secondary | `text-text-muted` (placeholder), `text-text-primary` (Add button `text-[14px] font-medium leading-5`) |
+| Text — muted | `text-text-muted` (X icon) |
+| Spacing | `px-3 py-2` (input), `px-4 py-2` (Add), `px-2 py-1` (pills), `gap-2` (row + pills flex), `gap-1` (pill inner), `gap-3` (outer flex-col) |
+| Hover state | `hover:bg-surface-secondary` (Add), `hover:text-text-primary` (X), `focus:ring-1 focus:ring-accent focus:border-accent` (input) |
+| Shadow | none |
+| Accent usage | `focus:ring-accent` / `focus:border-accent` |
+
+**Pattern notes:** Reusable for Skills/Industries/Job Titles/Preferred Locations. `flex-1` input + Add button row, `flex-wrap gap-2` pills. Enter commits, Backspace on empty removes last, duplicate/atMax rejected, `disabled:opacity-60`.
+
+#### `ProfileForm` — `components/profile/ProfileForm.tsx`
+File: `components/profile/ProfileForm.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card), `bg-accent` (Save button) |
+| Border | `border border-border` (card), `border-t border-border` (section dividers) |
+| Border radius | `rounded-2xl` (card), `rounded-md` (Save button) |
+| Text — primary | `text-text-primary` (title `text-[16px] font-semibold leading-6`) |
+| Text — secondary | `text-text-secondary` (subtext `text-[14px] leading-5`) |
+| Text — muted | — |
+| Spacing | `p-6` (card), `mt-1` (subtext), `mt-6` + `flex flex-col gap-8` (sections), `mt-8 border-t pt-6` (Save row), `px-4 py-3` (Save) |
+| Hover state | `hover:bg-accent-dark` (Save) |
+| Shadow | none |
+| Accent usage | `bg-accent text-accent-foreground` (Save) |
+
+**Pattern notes:** Owns `useState<FormData>` with screenshot mock data. Renders 5 section sub-components in order. Save is inside card after `border-t` divider, full-width `bg-accent`. `console.log` stub will be replaced in Feature 06.
+
+#### `PersonalInfo` — `components/profile/sections/PersonalInfo.tsx`
+File: `components/profile/sections/PersonalInfo.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (inputs/select), `bg-surface-secondary` (email readOnly) |
+| Border | `border border-border` |
+| Border radius | `rounded-md` |
+| Text — primary | `text-text-primary` (inputs `text-[14px] leading-5`) |
+| Text — secondary | `text-text-secondary` (labels `text-[12px] font-medium leading-4 tracking-wide uppercase`) |
+| Text — muted | `text-text-muted` (placeholder), `text-text-secondary` (email `cursor-default`) |
+| Spacing | `gap-4` (2-col grid), `mt-1.5` (inputs), `px-3 py-2` (inputs) |
+| Hover state | `focus:ring-1 focus:ring-accent focus:border-accent` |
+| Shadow | none |
+| Accent usage | focus ring only |
+
+**Pattern notes:** `grid-cols-1 md:grid-cols-2 gap-4`, Work Authorization spans `md:col-span-2`. Email `readOnly` with `bg-surface-secondary`. Select chevron via `ChevronDown` icon `absolute right-3 text-text-muted` in `relative` wrapper.
+
+#### `ProfessionalInfo` — `components/profile/sections/ProfessionalInfo.tsx`
+File: `components/profile/sections/ProfessionalInfo.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-md` |
+| Text — primary | `text-text-primary` (inputs `text-[14px] leading-5`, heading `text-[16px] font-semibold leading-6`) |
+| Text — secondary | `text-text-secondary` (labels `text-[12px]`) |
+| Text — muted | `text-text-muted` (placeholder) |
+| Spacing | `gap-4` (grid), `mt-1.5`/`mt-4` |
+| Hover state | focus ring |
+| Shadow | none |
+| Accent usage | focus ring |
+
+**Pattern notes:** Current Title full-width, Experience+Years 2-col, Skills/Industries each `TagInput` full-width. Options: junior/mid/senior/lead.
+
+#### `WorkExperience` — `components/profile/sections/WorkExperience.tsx`
+File: `components/profile/sections/WorkExperience.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (inputs), `bg-surface-secondary` (disabled End Date) |
+| Border | `border border-border` (inputs, role card `rounded-lg p-4`) |
+| Border radius | `rounded-md` (inputs), `rounded-lg` (role card), `rounded` (checkbox) |
+| Text — primary | `text-text-primary` (inputs `text-[14px] leading-5`, heading `text-[16px] font-semibold`) |
+| Text — secondary | `text-text-secondary` (labels `text-[12px]`), `text-text-primary` (checkbox label `text-[14px]`) |
+| Text — muted | `text-text-muted` (placeholder, disabled End Date), `text-text-muted hover:text-error` (Remove link `text-[13px]`) |
+| Spacing | `gap-4` (grid), `mt-1.5` (inputs), `mt-2` (checkbox), `p-4` (role card), `gap-4` (outer), `mt-3` (Remove row) |
+| Hover state | `hover:text-error` (Remove), `hover:text-accent` → `hover:text-accent-dark` via `text-accent` (Add role) |
+| Shadow | none |
+| Accent usage | `text-accent` (Add role `+ Add role`), `text-accent focus:ring-accent` (checkbox) |
+
+**Pattern notes:** Dynamic rows, "+ Add role" hidden at 3 (arch `work_experience` max 3). Each role `rounded-lg border p-4`. End Date label row is `flex justify-between` with checkbox `inline-flex gap-1.5 text-[12px]` on right; input `mt-1.5` below with `disabled:bg-surface-secondary` when `current`. Remove link `justify-end`.
+
+#### `Education` — `components/profile/sections/Education.tsx`
+File: `components/profile/sections/Education.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-md` |
+| Text — primary | `text-text-primary` |
+| Text — secondary | `text-text-secondary` (labels) |
+| Text — muted | `text-text-muted` (placeholder) |
+| Spacing | `gap-4` (2-col), `mt-1.5` |
+| Hover state | focus ring |
+| Shadow | none |
+| Accent usage | focus ring |
+
+**Pattern notes:** 2-col grid, options high_school/associate/bachelor/master/doctorate.
+
+#### `JobPreferences` — `components/profile/sections/JobPreferences.tsx`
+File: `components/profile/sections/JobPreferences.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-md` |
+| Text — primary | `text-text-primary` |
+| Text — secondary | `text-text-secondary` |
+| Text — muted | `text-text-muted` |
+| Spacing | `gap-4` (sections + 2-col), `mt-1.5`/`mt-4` |
+| Hover state | focus ring |
+| Shadow | none |
+| Accent usage | focus ring |
+
+**Pattern notes:** Job Titles `TagInput`, Remote+Salary 2-col, Preferred Locations `TagInput`, Cover Letter Tone select. Options remote/onsite/hybrid/any + formal/casual/enthusiastic.
+
 ### Auth
 
 #### `OAuthButtons` — `components/auth/OAuthButtons.tsx`
@@ -143,9 +316,20 @@ After building any component — update this file with the component name, file 
 - `captureServerEvent(distinctId, event, properties?)` — convenience wrapper that creates the client, captures the event, and calls `shutdown()`. Catches and logs errors so a PostHog outage never breaks the calling route.
 
 #### `ProfilePage` — `app/profile/page.tsx`
-- Server Component. Reads current user via `createInsforgeServer().auth.getCurrentUser()` and computes `isAuthed` from the `insforge_access_token` cookie.
-- Renders `<Navbar isAuthed>` and a "Coming soon" card pointing back to `/dashboard` or `/logout`. Feature 05 replaces this with the real profile editor.
-- Wrapper: `min-h-screen flex flex-col bg-background`, main `mx-auto max-w-[1440px] w-full px-8 py-12`, card matches the standard `bg-surface border border-border rounded-2xl p-8` pattern.
+File: `app/profile/page.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background` (page) |
+| Border | `border-border` (via child cards) |
+| Border radius | `rounded-2xl` (child cards) |
+| Text — primary | `text-text-primary` (if heading present) |
+| Text — secondary | `text-text-secondary` |
+| Spacing | `py-12` (container), `px-8` (container), `gap-6` (form stack) |
+| Shadow | none |
+
+**Pattern notes:** Server Component. `main` is `flex-1 w-full` (full width); inner container `mx-auto max-w-[1440px] px-8 py-12` is centered. Form column is `mx-auto flex w-full max-w-[1080px] flex-col gap-6` — 1080px matches design's card width, centered with `mx-auto`, falls back to `w-full` on narrow viewports. No page heading — design starts directly with banner.
 
 #### `app/api/auth/logout/route.ts`
 - GET handler. Constructs a `NextResponse.redirect("/")` first so the redirect `Set-Cookie` headers ride on the same response, then calls `createAuthActions({ requestCookies, responseCookies }).signOut()` to clear `insforge_access_token` + `insforge_refresh_token`.

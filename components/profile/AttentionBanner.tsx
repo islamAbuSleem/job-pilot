@@ -1,0 +1,72 @@
+import { AlertCircle } from "lucide-react";
+
+const COMPLETION_PERCENTAGE = 70;
+const MISSING_FIELDS = ["PHONE", "LOCATION", "EDUCATION"] as const;
+
+function CompletionRing({ percentage }: { percentage: number }) {
+  const size = 120;
+  const stroke = 8;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (percentage / 100) * circumference;
+
+  return (
+    <div className="relative w-[120px] h-[120px] shrink-0">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--color-surface-secondary)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--color-error)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circumference - dash}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[24px] font-semibold leading-7 text-text-primary">
+          {percentage}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function AttentionBanner() {
+  return (
+    <div className="bg-surface border border-border rounded-2xl p-6 flex items-start justify-between gap-6">
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-error" />
+          <h2 className="text-[16px] font-semibold leading-6 text-error">
+            Profile needs attention
+          </h2>
+        </div>
+        <p className="mt-2 text-[14px] leading-5 text-text-primary max-w-md">
+          Complete the missing fields to improve your chance of getting tailored
+          matches and generating quality resumes.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {MISSING_FIELDS.map((field) => (
+            <span
+              key={field}
+              className="inline-flex items-center rounded-sm bg-error-light px-2 py-0.5 text-[12px] font-medium leading-4 text-error"
+            >
+              {field}
+            </span>
+          ))}
+        </div>
+      </div>
+      <CompletionRing percentage={COMPLETION_PERCENTAGE} />
+    </div>
+  );
+}

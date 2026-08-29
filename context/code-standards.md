@@ -312,6 +312,7 @@ Approved dependencies for this project:
 - `posthog-js` — PostHog browser client
 - `posthog-node` — PostHog server client
 - `@react-pdf/renderer` — Resume PDF generation
+- `react-dropzone` — Resume drag-and-drop upload
 - `pdf-parse` — Extract text from uploaded PDF
 - `zod` — Schema validation
 - `lucide-react` — Icons
