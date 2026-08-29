@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 2 — Profile Page
-**Last completed:** 05 Profile Page — Full UI
-**Next:** 06 Profile Save Logic
+**Last completed:** 06 Profile Save Logic
+**Next:** 07 AI Profile Extraction from Resume
 
 ---
 
@@ -24,7 +24,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ### Phase 2 — Profile Page
 
 - [x] 05 Profile Page — Full UI
-- [ ] 06 Profile Save Logic
+- [x] 06 Profile Save Logic
 - [ ] 07 AI Profile Extraction from Resume
 - [ ] 08 Resume PDF Generation from Profile
 
