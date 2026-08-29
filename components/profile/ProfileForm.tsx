@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Education,
   type EducationData,
@@ -78,6 +78,13 @@ export function ProfileForm({ initialData, resumeFile, onResumeFileChange, onCom
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Sync with parent when `initialData` changes — e.g. after the user clicks
+  // "Extract from Resume" and ProfileEditor.setFormData(mapped) runs. Without
+  // this, the form would keep showing its own pre-extraction useState snapshot.
+  useEffect(() => {
+    setData(initialData ?? DEFAULT_DATA);
+  }, [initialData]);
 
   function notifyCompletion(next: FormData) {
     if (!onCompletionChange) return;
