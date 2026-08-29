@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    const posthogHost =
+      process.env.POSTHOG_HOST ?? process.env.NEXT_PUBLIC_POSTHOG_HOST;
     if (!posthogHost) return [];
     return [
       {
