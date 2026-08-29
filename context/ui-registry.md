@@ -151,7 +151,7 @@ Last updated: 2026-08-29
 | Shadow | none |
 | Accent usage | `bg-accent text-accent-foreground` (Save) |
 
-**Pattern notes:** Owns `useState<FormData>` with screenshot mock data. Renders 5 section sub-components in order. Save is inside card after `border-t` divider, full-width `bg-accent`. `console.log` stub will be replaced in Feature 06.
+**Pattern notes:** Owns `useState<FormData>` initialized from `initialData` prop (server-fetched). Renders 5 section sub-components in order. Save is inside card after `border-t` divider, full-width `bg-accent`, wired to `saveProfile` Server Action via `useTransition`; shows `success`/`error` alert and `fieldErrors` map, disables during pending.
 
 #### `PersonalInfo` — `components/profile/sections/PersonalInfo.tsx`
 File: `components/profile/sections/PersonalInfo.tsx`
@@ -247,6 +247,24 @@ Last updated: 2026-08-29
 | Accent usage | focus ring |
 
 **Pattern notes:** Job Titles `TagInput`, Remote+Salary 2-col, Preferred Locations `TagInput`, Cover Letter Tone select. Options remote/onsite/hybrid/any + formal/casual/enthusiastic.
+
+#### `ProfileEditor` — `components/profile/ProfileEditor.tsx`
+File: `components/profile/ProfileEditor.tsx`
+Last updated: 2026-08-29
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background` (page via parent) |
+| Border | `border-border` (via children) |
+| Spacing | `mx-auto w-full max-w-[1080px] flex-col gap-6` |
+
+**Pattern notes:** Client wrapper that lifts `resumeFile` state and `completion` ({percentage, missingFields}) and renders `AttentionBanner` + `ResumeCard` + `ProfileForm`. Passed `initialData`/`resumeUrl`/`initialCompletion` from Server Component. Keeps form and banner in sync via `onCompletionChange`.
+
+#### `ProfileCompletion` — `lib/profile-completion.ts`
+- `computeCompletion(profile): { percentage, missingFields, isComplete }` — 10 required checks, used in both Server Action and `AttentionBanner` for single source of truth.
+
+#### `ProfileValidation` — `lib/profile-validation.ts`
+- Zod `profileSchema` for all 23 profile fields, `workExperienceRoleSchema` max 3, used in `actions/profile.ts` for server-side validation. Returns `fieldErrors` map on failure.
 
 ### Auth
 

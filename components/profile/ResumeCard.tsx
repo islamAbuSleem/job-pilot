@@ -12,27 +12,35 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function ResumeCard() {
-  const [file, setFile] = useState<File | null>(null);
+type Props = {
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+  existingUrl?: string | null;
+};
+
+export function ResumeCard({ file, onFileChange, existingUrl }: Props) {
   const [error, setError] = useState<string | null>(null);
 
-  const onDrop = useCallback((accepted: File[], rejections: FileRejection[]) => {
-    setError(null);
-    if (rejections.length > 0) {
-      const first = rejections[0];
-      if (first.errors[0]?.code === "file-too-large") {
-        setError("File is larger than 5 MB. Please upload a smaller PDF.");
-      } else if (first.errors[0]?.code === "file-invalid-type") {
-        setError("Only PDF files are accepted.");
-      } else {
-        setError("Could not accept this file. Please try another.");
+  const onDrop = useCallback(
+    (accepted: File[], rejections: FileRejection[]) => {
+      setError(null);
+      if (rejections.length > 0) {
+        const first = rejections[0];
+        if (first.errors[0]?.code === "file-too-large") {
+          setError("File is larger than 5 MB. Please upload a smaller PDF.");
+        } else if (first.errors[0]?.code === "file-invalid-type") {
+          setError("Only PDF files are accepted.");
+        } else {
+          setError("Could not accept this file. Please try another.");
+        }
+        return;
       }
-      return;
-    }
-    if (accepted.length > 0) {
-      setFile(accepted[0]);
-    }
-  }, []);
+      if (accepted.length > 0) {
+        onFileChange(accepted[0]);
+      }
+    },
+    [onFileChange],
+  );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -44,7 +52,7 @@ export function ResumeCard() {
   });
 
   function clear() {
-    setFile(null);
+    onFileChange(null);
     setError(null);
   }
 
@@ -71,7 +79,7 @@ export function ResumeCard() {
                 {file.name}
               </p>
               <p className="text-[12px] leading-4 text-text-muted">
-                {formatBytes(file.size)} · Ready to upload
+                {formatBytes(file.size)} · Ready to upload on Save
               </p>
             </div>
           </div>
@@ -83,6 +91,18 @@ export function ResumeCard() {
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      ) : existingUrl ? (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-secondary px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileText className="w-5 h-5 shrink-0 text-text-secondary" />
+            <div className="min-w-0">
+              <p className="text-[14px] font-medium leading-5 text-text-primary truncate">Current resume</p>
+              <a href={existingUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] leading-4 text-accent hover:underline">
+                View PDF
+              </a>
+            </div>
+          </div>
         </div>
       ) : (
         <div
