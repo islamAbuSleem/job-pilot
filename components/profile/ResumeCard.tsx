@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { CloudUpload, FileText, X } from "lucide-react";
+import { CloudUpload, FileText, X, Sparkles, Trash2 } from "lucide-react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -16,10 +16,14 @@ type Props = {
   file: File | null;
   onFileChange: (file: File | null) => void;
   existingUrl?: string | null;
+  canDelete?: boolean;
+  isDeleting?: boolean;
+  onDelete?: () => void;
 };
 
-export function ResumeCard({ file, onFileChange, existingUrl }: Props) {
+export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDeleting, onDelete }: Props) {
   const [error, setError] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const onDrop = useCallback(
     (accepted: File[], rejections: FileRejection[]) => {
@@ -54,6 +58,30 @@ export function ResumeCard({ file, onFileChange, existingUrl }: Props) {
   function clear() {
     onFileChange(null);
     setError(null);
+  }
+
+  async function handleExtract() {
+    if (!file || isExtracting) return;
+    setError(null);
+    setIsExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/resume/extract", {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Extraction failed");
+      // The parent ProfileEditor will handle populating the form
+      // via a custom window event
+      window.dispatchEvent(new CustomEvent("resume-extracted", { detail: json.data }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Extraction failed");
+    } finally {
+      setIsExtracting(false);
+    }
   }
 
   function handleGenerate() {
@@ -103,6 +131,25 @@ export function ResumeCard({ file, onFileChange, existingUrl }: Props) {
               </a>
             </div>
           </div>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isDeleting}
+              aria-label="Remove saved resume"
+              className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-text-muted hover:text-error hover:bg-error-light disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {isDeleting ? (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              {isDeleting ? <span className="text-[13px]">Removing…</span> : null}
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -142,18 +189,39 @@ export function ResumeCard({ file, onFileChange, existingUrl }: Props) {
         </p>
       )}
 
-      <div className="mt-6 border-t border-border pt-6 flex items-center justify-between gap-4">
+      <div className="mt-6 border-t border-border pt-6 flex flex-wrap items-center justify-between gap-4">
         <p className="text-[14px] leading-5 text-text-secondary">
           Need a fresh document based on the fields below?
         </p>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground hover:bg-accent-dark transition-colors"
-        >
-          <FileText className="w-4 h-4" />
-          Generate Resume from Profile
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {file && !isExtracting && (
+            <button
+              type="button"
+              onClick={handleExtract}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-[14px] font-medium leading-5 text-text-primary hover:bg-surface-secondary transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              Extract from Resume
+            </button>
+          )}
+          {isExtracting && (
+            <span className="inline-flex items-center gap-2 text-[14px] leading-5 text-text-secondary">
+              <svg className="animate-spin h-4 w-4 text-accent" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Extracting...
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground hover:bg-accent-dark transition-colors"
+          >
+            <FileText className="w-4 h-4" />
+            Generate Resume from Profile
+          </button>
+        </div>
       </div>
     </div>
   );

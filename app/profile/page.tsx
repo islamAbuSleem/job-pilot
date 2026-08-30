@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
 import { computeCompletion } from "@/lib/profile-completion";
+import { extractResumePath } from "@/lib/resume-path";
 
 export default async function ProfilePage() {
   const cookieStore = await cookies();
@@ -17,36 +18,17 @@ export default async function ProfilePage() {
     ? await insforge.database.from("profiles").select("*").eq("id", user.id).single()
     : { data: null };
 
+  const resumePath = extractResumePath(
+    typeof profile?.resume_pdf_url === "string" ? profile.resume_pdf_url : null,
+    user?.id,
+  );
+
   let signedResumeUrl: string | null = null;
-  if (profile?.resume_pdf_url) {
-    const stored = String(profile.resume_pdf_url);
-    let path = stored;
-    if (stored.startsWith("http")) {
-      try {
-        const url = new URL(stored);
-        const objIdx = url.pathname.indexOf("/objects/");
-        if (objIdx !== -1) {
-          path = decodeURIComponent(url.pathname.slice(objIdx + "/objects/".length));
-        } else {
-          const idx = url.pathname.indexOf("/resumes/");
-          if (idx !== -1) {
-            const after = url.pathname.slice(idx + "/resumes/".length);
-            path = decodeURIComponent(after.replace(/^objects\//, ""));
-          } else {
-            const parts = url.pathname.split("/");
-            const last = parts[parts.length - 1];
-            if (last) path = `${user?.id ?? ""}/${decodeURIComponent(last)}`;
-          }
-        }
-      } catch {
-        path = stored;
-      }
-    }
-    if (path && user) {
-      const { data } = await insforge.storage.from("resumes").createSignedUrl(path, 3600);
-      signedResumeUrl = data?.signedUrl ?? null;
-      if (!signedResumeUrl) signedResumeUrl = stored.startsWith("http") ? stored : null;
-    }
+  if (resumePath && user) {
+    const { data } = await insforge.storage
+      .from("resumes")
+      .createSignedUrl(resumePath, 3600);
+    signedResumeUrl = data?.signedUrl ?? null;
   }
 
   const initialData = profile
@@ -135,7 +117,12 @@ export default async function ProfilePage() {
       <Navbar isAuthed={isAuthed} />
       <main className="flex-1 w-full">
         <div className="mx-auto max-w-[1440px] px-8 py-12">
-          <ProfileEditor initialData={initialData} resumeUrl={signedResumeUrl} initialCompletion={completion} />
+          <ProfileEditor
+            initialData={initialData}
+            resumeUrl={signedResumeUrl}
+            resumePath={resumePath}
+            initialCompletion={completion}
+          />
         </div>
       </main>
       <Footer />
