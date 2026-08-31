@@ -7,8 +7,14 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 2 — Profile Page
-**Last completed:** 07 AI Profile Extraction from Resume (text + vision fallback)
-**Next:** 08 Resume PDF Generation from Profile
+**Last completed:** 08 Resume PDF Generation from Profile (minimax-m3 model)
+**Next:** Fix TODOs below, then 09 Find Jobs Page — Full UI
+
+---
+
+## TODOs
+
+- [ ] **Fix `/api/auth/refresh` 401 `AUTH_UNAUTHORIZED — No refresh token provided`**: the InsForge-hosted refresh endpoint (`https://p8i46jbn.eu-central.insforge.app/api/auth/refresh`) returns 401 when called directly. The `insforge_refresh_token` cookie is set on the app domain (`localhost:3000`), not the InsForge host, so direct browser hits carry no cookie. Investigate whether the browser client's automatic refresh (when the access token nears expiry) is hitting the right base URL and sending `credentials: "include"`; verify cookie domain/path settings; confirm the user is not silently logged out when the access token expires. Files: `app/api/auth/refresh/route.ts`, `lib/insforge-client.ts`, `proxy.ts` (`updateSession`).
 
 ---
 
@@ -26,7 +32,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] 05 Profile Page — Full UI
 - [x] 06 Profile Save Logic
 - [x] 07 AI Profile Extraction from Resume
-- [ ] 08 Resume PDF Generation from Profile
+- [x] 08 Resume PDF Generation from Profile
 
 ### Phase 3 — Find Jobs Page
 
@@ -84,6 +90,13 @@ Update this file after every completed feature. Any AI agent reading this should
 - The fallback `openrouter/free` was returning JSON wrapped in markdown fences despite `response_format: json_object`, so `JSON.parse` failed and the user saw "Failed to parse model response as JSON." Added `parseLenientJson()` in `lib/openrouter.ts` — tries direct parse → strips ```json fences → finds the first balanced `{...}` span. Now salvageable on the next try instead of throwing.
 - Added `OPENROUTER_SECONDARY_TEXT_MODEL = "nvidia/nemotron-3.5-lightning:free"` as a third hop in the text chain. Distinct provider pool, separate daily quota — works when ling is rate-limited.
 - When all models in the chain are 429'd, the route now returns 502 with `"Our AI service has hit its daily free-tier limit. Please try again tomorrow, or fill the profile fields manually below."` instead of leaking the JSON-parse error.
+
+### 08 Resume PDF Generation from Profile
+- Created `lib/resume-generation.ts` (prompt + JSON parser reuse via exported `getClient`/`parseLenientJson` from `openrouter.ts`).
+- Created `app/api/resume/generate/resume-pdf.tsx` (single-page A4 JSX component) and `route.tsx` (server-only `POST`, reads DB profile, calls LLM, renders buffer, uploads to storage, updates `profiles`).
+- Wired `components/profile/ResumeCard.tsx` `handleGenerate` stub to `POST /api/resume/generate` with `credentials: "include"`, `isGenerating` loading state, and `window.location.reload()` on success.
+- Installed `@react-pdf/renderer` (approved dependency).
+- Build clean. Route registered in build output (`/api/resume/generate`).
 
 ### 07 follow-up 3 — validation loosening
 - `profileSchema.work_experience.max(3)` → `.max(10)` to match the `WorkExperience` UI section (also bumped MAX_ROLES 3 → 10) and accept real resumes with 5–15 roles.

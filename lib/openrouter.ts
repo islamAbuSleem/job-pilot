@@ -4,11 +4,12 @@ export const OPENROUTER_MODEL = "inclusionai/ling-3.0-flash-fin:free";
 export const OPENROUTER_VISION_MODEL = "google/gemma-4-31b-it:free";
 export const OPENROUTER_FALLBACK_MODEL = "openrouter/free";
 export const OPENROUTER_SECONDARY_TEXT_MODEL = "nvidia/nemotron-3.5-lightning:free";
+export const OPENROUTER_MODEL_GENERATE = "minimax/minimax-m3:free";
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 let cachedClient: OpenAI | null = null;
 
-function getClient(): OpenAI {
+export function getClient(): OpenAI {
   if (cachedClient) return cachedClient;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
@@ -110,7 +111,7 @@ function isRateLimited(error: unknown): boolean {
  * prose despite response_format: json_object. Try a direct parse, then strip
  * fences, then locate the first balanced {...} span.
  */
-function parseLenientJson(content: string): Record<string, unknown> | null {
+export function parseLenientJson(content: string): Record<string, unknown> | null {
   const trimmed = content.trim();
 
   try {

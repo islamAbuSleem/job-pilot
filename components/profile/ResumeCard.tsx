@@ -84,8 +84,26 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
     }
   }
 
-  function handleGenerate() {
-    console.log("[profile] generate resume stubbed — Feature 08 will wire this up");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  async function handleGenerate() {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/resume/generate", {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Generation failed");
+      // Refresh the page to load the new resume URL
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   return (
@@ -213,14 +231,24 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
               Extracting...
             </span>
           )}
-          <button
-            type="button"
-            onClick={handleGenerate}
-            className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground hover:bg-accent-dark transition-colors"
-          >
-            <FileText className="w-4 h-4" />
-            Generate Resume from Profile
-          </button>
+          {isGenerating ? (
+            <span className="inline-flex items-center gap-2 text-[14px] leading-5 text-text-secondary">
+              <svg className="animate-spin h-4 w-4 text-accent" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Generating...
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleGenerate}
+              className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground hover:bg-accent-dark transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Generate Resume from Profile
+            </button>
+          )}
         </div>
       </div>
     </div>

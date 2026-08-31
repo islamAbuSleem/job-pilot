@@ -113,7 +113,7 @@ Last updated: 2026-08-29
 | Shadow | none |
 | Accent usage | `bg-accent-light text-accent` (icon circle), `border-accent bg-accent-muted` (drag active), `bg-accent text-accent-foreground` (Generate) |
 
-**Pattern notes:** Dropzone via `react-dropzone@20.1.1` (`accept pdf`, `maxSize 5MB`, `multiple false`, `noClick/noKeyboard` — Select button is click target). Conditional `border-accent`/`bg-accent-muted` when `isDragActive`. File row collapses dropzone. Generate `FileText` icon + `console.log` stub (Feature 08).
+**Pattern notes:** Dropzone via `react-dropzone@20.1.1` (`accept pdf`, `maxSize 5MB`, `multiple false`, `noClick/noKeyboard` — Select button is click target). Conditional `border-accent`/`bg-accent-muted` when `isDragActive`. File row collapses dropzone. Generate button (`bg-accent text-accent-foreground`) now wired to `POST /api/resume/generate` with `isGenerating` spinner and reload on success (Feature 08 completed).
 
 #### `TagInput` — `components/profile/TagInput.tsx`
 File: `components/profile/TagInput.tsx`
