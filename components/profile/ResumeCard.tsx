@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { CloudUpload, FileText, X, Sparkles, Trash2 } from "lucide-react";
+import { CloudUpload, FileText, X, Sparkles, Trash2, Download } from "lucide-react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -48,6 +48,25 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
     },
     [onFileChange],
   );
+
+  async function handleDownload() {
+    if (!existingUrl) return;
+    try {
+      const res = await fetch(existingUrl, { credentials: "include" });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.open(existingUrl, "_blank", "noopener,noreferrer");
+    }
+  }
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
@@ -130,6 +149,17 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
               </a>
             </div>
           </div>
+          <div className="flex items-center gap-1">
+          {existingUrl && (
+            <button
+              type="button"
+              onClick={handleDownload}
+              aria-label="Download resume"
+              className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-text-muted hover:text-accent hover:bg-accent-light transition-colors"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -149,6 +179,7 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
               {isDeleting ? <span className="text-[13px]">Removing…</span> : null}
             </button>
           )}
+          </div>
         </div>
       ) : (
         <div
