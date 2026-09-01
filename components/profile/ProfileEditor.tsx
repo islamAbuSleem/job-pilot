@@ -28,6 +28,8 @@ export function ProfileEditor({ initialData, resumeUrl, resumePath, initialCompl
   const [formData, setFormData] = useState<FormData>(initialData);
   const [resumeRemoved, setResumeRemoved] = useState(false);
   const [isDeleting, startDelete] = useTransition();
+  const [isGenerating, startGenerate] = useTransition();
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [savedResumeUrl, setSavedResumeUrl] = useState<string | null | undefined>(resumeUrl);
   const [savedResumePath, setSavedResumePath] = useState<string | null | undefined>(resumePath);
   const router = useRouter();
@@ -103,6 +105,30 @@ export function ProfileEditor({ initialData, resumeUrl, resumePath, initialCompl
     });
   }
 
+  function handleGenerateResume() {
+    if (isGenerating) return;
+    setGenerateError(null);
+    startGenerate(async () => {
+      try {
+        const res = await fetch("/api/resume/generate", {
+          method: "POST",
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Generation failed");
+        if (json.path) {
+          setSavedResumePath(json.path);
+          setResumeRemoved(false);
+        }
+        router.refresh();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Generation failed";
+        setGenerateError(message);
+        console.error("[ProfileEditor] resume generate failed:", err);
+      }
+    });
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6">
       <AttentionBanner percentage={completion.percentage} missingFields={completion.missingFields} />
@@ -113,6 +139,9 @@ export function ProfileEditor({ initialData, resumeUrl, resumePath, initialCompl
         canDelete={Boolean(savedResumePath ?? resumePath)}
         isDeleting={isDeleting}
         onDelete={handleDeleteResume}
+        onGenerate={handleGenerateResume}
+        isGenerating={isGenerating}
+        generateError={generateError}
       />
       <ProfileForm
         initialData={formData}

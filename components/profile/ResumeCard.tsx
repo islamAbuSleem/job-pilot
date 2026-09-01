@@ -19,9 +19,12 @@ type Props = {
   canDelete?: boolean;
   isDeleting?: boolean;
   onDelete?: () => void;
+  onGenerate?: () => void;
+  isGenerating?: boolean;
+  generateError?: string | null;
 };
 
-export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDeleting, onDelete }: Props) {
+export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDeleting, onDelete, onGenerate, isGenerating, generateError }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
 
@@ -81,28 +84,6 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
       setError(err instanceof Error ? err.message : "Extraction failed");
     } finally {
       setIsExtracting(false);
-    }
-  }
-
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  async function handleGenerate() {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/resume/generate", {
-        method: "POST",
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "Generation failed");
-      // Refresh the page to load the new resume URL
-      window.location.reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
-    } finally {
-      setIsGenerating(false);
     }
   }
 
@@ -198,12 +179,12 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
         </div>
       )}
 
-      {error && (
+      {(error || generateError) && (
         <p
           role="alert"
           className="mt-3 text-[13px] leading-5 text-error"
         >
-          {error}
+          {generateError ?? error}
         </p>
       )}
 
@@ -242,7 +223,8 @@ export function ResumeCard({ file, onFileChange, existingUrl, canDelete, isDelet
           ) : (
             <button
               type="button"
-              onClick={handleGenerate}
+              onClick={onGenerate}
+              disabled={!onGenerate}
               className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground hover:bg-accent-dark transition-colors"
             >
               <FileText className="w-4 h-4" />
