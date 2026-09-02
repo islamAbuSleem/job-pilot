@@ -26,8 +26,10 @@ After building any component — update this file with the component name, file 
 - logo mark → 36×36, `rounded-[10px]`, gradient `linear-gradient(45deg, #7C5CFC 0%, #4A2EC5 100%)`
 - logo text → `text-[19px] font-bold leading-7 text-text-darkest`
 - nav links → `text-[14px] font-medium leading-5 text-text-dark hover:text-accent`
+- active link → `text-accent border-b-2 border-accent pb-1` (Feature 09 deviation from `ui-rules.md` — design shows underline; active color still #7C5CFC)
 - primary CTA → `bg-accent text-accent-foreground px-4 py-2 rounded-md text-[14px] font-medium`
 - Accepts `isAuthed: boolean` prop. When true, CTA label changes to "Open dashboard" and href becomes `/dashboard`.
+- Accepts `activePath?: string` prop (Feature 09). When provided and matching `/dashboard`, `/find-jobs`, or `/profile`, that link gets the active style. Pass it from each page that uses the Navbar; falls back to all-inactive when omitted.
 
 #### `Footer` — `components/layout/Footer.tsx`
 - `footer` → `w-full bg-surface border-t border-border`
@@ -265,6 +267,181 @@ Last updated: 2026-08-29
 
 #### `ProfileValidation` — `lib/profile-validation.ts`
 - Zod `profileSchema` for all 23 profile fields, `workExperienceRoleSchema` max 3, used in `actions/profile.ts` for server-side validation. Returns `fieldErrors` map on failure.
+
+### Find Jobs
+
+#### `SearchControls` — `components/find-jobs/SearchControls.tsx`
+File: `components/find-jobs/SearchControls.tsx`
+Last updated: 2026-09-01
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card, inputs, button) |
+| Border | `border border-border` (card, inputs) |
+| Border radius | `rounded-2xl` (card), `rounded-md` (inputs, button) |
+| Text — primary | `text-text-primary` (input values) |
+| Text — secondary | `text-text-secondary` (labels `text-[12px] font-medium leading-4 tracking-wide uppercase`) |
+| Text — muted | `text-text-muted` (placeholder, search icon) |
+| Spacing | `p-6` (card), `gap-4` (grid), `gap-2` (label + input), `mt-6` (success banner), `px-4 py-3` (banner) |
+| Hover state | `hover:bg-accent-dark` (Find Jobs) |
+| Accent usage | `bg-accent text-accent-foreground` (Find Jobs button), `focus:ring-accent` / `focus:border-accent` (inputs) |
+
+**Pattern notes:** Form is `grid grid-cols-1 md:grid-cols-[1fr_1fr_auto]` — title + location + button. Job Title input has `Search` icon `absolute left-3` inside a `relative` wrapper. Inputs are controlled (`value`/`onChange`) and submit to `POST /api/agent/find` with `credentials:"include"` and `{jobTitle, location}` JSON. Loading shows spinner + "Searching..." and disables the button (`disabled:opacity-60`). Banner uses `bg-success-lightest border-success-light text-success-foreground` for success and `border-error-light bg-error-light text-error` for errors. On success one of three messages is shown, all reading "Saved N jobs" so the job count is unambiguous: `Saved ${found} jobs — all strong matches.` when `strong === found`, `Saved ${found} jobs, ${strong} of them strong matches.` when `0 < strong < found`, `Saved ${found} jobs. None scored 70+ yet — try refining your profile for stronger matches.` when `strong === 0`, plus the no-jobs `No jobs found for this query. Try a different title or location.` for `found === 0`. Then `router.refresh()` pulls the just-inserted DB rows via the server component. Empty title shows inline error banner. (Wired in Feature 10; was `e.preventDefault()` stub in Feature 09.) **Defaults:** `defaultTitle="Frontend Engineer"` is also the initial `jobTitle` state (always pre-filled). `defaultLocation=""` is empty so the first submit omits `where` and Adzuna returns country-wide results; the visible "Remote, New York..." is only a `placeholder`. (Fix 2026-09-02 — submitting the literal placeholder `Remote, New York...` (with `...`) made Adzuna return 0 results.)
+
+#### `JobsList` — `components/find-jobs/JobsList.tsx`
+File: `components/find-jobs/JobsList.tsx`
+Last updated: 2026-09-02
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (filter card, table, inputs, dropdowns, pagination buttons) |
+| Border | `border border-border` (filter card, table, inputs, dropdowns) |
+| Border radius | `rounded-2xl` (filter card, table) |
+| Text — primary | `text-text-primary` (input, company, role, salary, page numbers active) |
+| Text — secondary | `text-text-secondary` (column headers `text-[12px] font-medium leading-4 tracking-wide uppercase`, date found, "Showing X to Y of Z results") |
+| Text — muted | `text-text-muted` (placeholder, dropdown chevron, ellipsis) |
+| Spacing | `p-4` (filter card), `px-6 py-3` (column header), `px-6 py-4` (rows), `px-6 py-4` (pagination row), `gap-3` (filter flex), `gap-2` (dropdowns) |
+| Hover state | `hover:bg-surface-secondary` (rows, inactive page buttons), `hover:bg-accent-dark` (Find Jobs) |
+| Accent usage | `focus:ring-accent` / `focus:border-accent` (inputs), `bg-accent-light text-accent` (active page), `border-b-2 border-accent` (active nav) |
+
+**Pattern notes:** Client Component. **State lives in the URL** (`?page=&filter=&sort=&q=`); `JobsList` pushes changes via `router.push` inside `startTransition` and the Server Component (`app/find-jobs/page.tsx`) re-runs the query. Server passes the already-filtered `jobs` slice, `page`, `pageSize`, `pageCount`, `start`, `end`, `filter`, `sort`, `query` as props. Local state: only the text input (so typing doesn't fire a server roundtrip per keystroke); pressing Enter or clicking the input's submit pushes to the URL. The list dims (`opacity-60`) during `useTransition` pending. Table uses CSS grid `grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)]` so column widths match the design. Row hover `bg-surface-secondary`, separator `border-b border-border`. Empty state: when `total === 0` shows "No jobs found yet. Run a search above to find matches." (`text-text-muted`, `py-12`); when `total > 0` but the page slice is empty, shows "No jobs match your filters." — same muted style. Pagination row hidden when `total === 0`. Filter/sort options are imported from `lib/jobs-query.ts` (single source of truth shared with the Server Component).
+
+#### `MatchScoreBar` — `components/find-jobs/MatchScoreBar.tsx`
+File: `components/find-jobs/MatchScoreBar.tsx`
+Last updated: 2026-09-01
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-border-light` (track), `bg-success` (80-100%), `bg-info` (60-79%), `bg-warning` (<60%) |
+| Border radius | `rounded-full` (track + fill) |
+| Text — primary | `text-text-primary` (none — uses semantic color tokens) |
+| Text — secondary | — |
+| Accent usage | `text-success` (90-100%, 70-89%), `text-info` (60-69%), `text-warning` (50-59%), `text-text-muted` (<50%) |
+
+**Pattern notes:** `h-1` bar (4px) inside a `max-w-[120px]` track, with the percentage on the right (`text-[14px] font-medium tabular-nums`). Fill width is `Math.max(0, Math.min(100, score))%` to clamp. Score-color split mirrors `ui-rules.md` Match Score Bar with the additional `text-warning` 50-59 range.
+
+#### `CompanyMark` — `components/find-jobs/CompanyMark.tsx`
+File: `components/find-jobs/CompanyMark.tsx`
+Last updated: 2026-09-01
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface-secondary` |
+| Border | `border border-border` |
+| Border radius | `rounded-lg` |
+| Text — secondary | `text-text-secondary` (icon) |
+| Spacing | `w-10 h-10` |
+| Accent usage | none |
+
+**Pattern notes:** Square 40×40 with a `Building2` icon. Initials are computed in `sr-only` so the company name is screen-reader-available even when only the icon shows.
+
+#### `JobsPagination` — `components/find-jobs/JobsPagination.tsx`
+File: `components/find-jobs/JobsPagination.tsx`
+Last updated: 2026-09-02
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (all buttons) |
+| Border | none — uses `gap-2` for separation |
+| Border radius | `rounded-md` (buttons) |
+| Text — primary | `text-text-primary` (page numbers) |
+| Text — secondary | `text-text-muted` (ellipsis), `text-text-secondary` (Previous/Next) |
+| Spacing | `gap-2` (button row), `px-3 min-w-9 h-9` (buttons) |
+| Hover state | `hover:bg-surface-secondary` (Previous/Next, inactive pages) |
+| Accent usage | `bg-accent-light text-accent` (active page) |
+
+**Pattern notes:** Pure component, no client state. `buildPageList(current, total)` always includes page 1, page `total`, and the current page ± 1; ellipsis is inserted between any gap > 1. Returns `1..N` for `total <= 5`, `[]` for `total <= 1`. `Previous` and `Next` are disabled (`opacity-50 cursor-not-allowed`) at the ends. Active page gets `aria-current="page"`. The list is the source of truth for which numeric buttons render — the parent re-renders this component with the new `page` after a URL push.
+
+#### `FindJobsPage` — `app/find-jobs/page.tsx`
+File: `app/find-jobs/page.tsx`
+Last updated: 2026-09-02
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background` (page) |
+| Spacing | `py-12` (container), `px-8` (container), `gap-6` (form stack) |
+| Shadow | none |
+
+**Pattern notes:** Server Component. Reads `isAuthed` from the `insforge_access_token` cookie. Accepts `searchParams: Promise<{ page?, filter?, sort?, q? }>` and parses each via helpers in `lib/jobs-query.ts` (`parsePage`, `parseFilter`, `parseSort`) so unknown values fall back to defaults (`page=1`, `filter=all`, `sort=matchScore`, `q=""`). Builds an InsForge query chain on `insforge.database.from("jobs").select("*", { count: "exact" }).eq("user_id", user.id)`, then conditionally appends `.gte("match_score", 70)` / `.lt("match_score", 70)` for the match filter, `.or("company.ilike.%…%,title.ilike.%…%")` for text search (with `escapeIlike` to neutralise `%`, `_`, `\`), then `.order("match_score", { ascending: false }).order("found_at", { ascending: false })` / `.order("found_at", { ascending: false | true })` per the sort key, and finally `.range(from, to)` with `pageSize = 20` (DEFAULT_PAGE_SIZE). `start` / `end` / `pageCount` are derived from the server's `count`; `notFound()` triggers if `page > pageCount` and there are results. DB fetch is wrapped in try/catch — any error leaves the list empty. Mounts `Navbar` with `activePath="/find-jobs"`, `<PageviewTracker path="/find-jobs" />`, then `SearchControls` (wired in Feature 10) + `JobsList` (URL-driven, Feature 11).
+
+#### `Job Types` — `components/find-jobs/types.ts`
+File: `components/find-jobs/types.ts`
+Last updated: 2026-09-01
+
+| Property | Notes |
+| --- | --- |
+| Exports | `Job {id, company, role, matchScore, salary, dateFound}` |
+
+**Pattern notes:** UI-only shape shared by `app/find-jobs/page.tsx` (server-mapped DB row) and `components/find-jobs/JobsList.tsx`. Lifted from the deleted `mock-jobs.ts` when the mock fallback was removed.
+
+#### `JobsQuery` — `lib/jobs-query.ts`
+File: `lib/jobs-query.ts`
+Last updated: 2026-09-02
+
+| Property | Notes |
+| --- | --- |
+| Exports | `DEFAULT_PAGE_SIZE = 20`, `MATCH_THRESHOLD = 70`, `MATCH_FILTERS`, `SORT_OPTIONS`, `MatchFilter`, `SortKey`, `JobRow`, `ListJobsResult`, `parsePage`, `parseFilter`, `parseSort`, `escapeIlike` |
+| Used by | `app/find-jobs/page.tsx` (Server Component), `components/find-jobs/JobsList.tsx` (Client Component) |
+
+**Pattern notes:** Single source of truth for filter / sort options, threshold, page size, and the small parsers that turn raw `searchParams` into typed values with safe defaults. `MATCH_THRESHOLD` was previously only in `lib/utils.ts`; moved here so the server query and the client share the same numeric value. `escapeIlike` neutralises `%`, `_`, and `\` in the user-typed search term before it is interpolated into the PostgREST `.or("…ilike.…")` filter, otherwise `%` in the search would be interpreted as a wildcard. The actual query chain lives inline in `app/find-jobs/page.tsx` so TypeScript can infer the postgrest-js fluent types end-to-end.
+
+#### `Adzuna Client` — `lib/adzuna.ts`
+File: `lib/adzuna.ts`
+Last updated: 2026-09-01
+
+| Property | Notes |
+| --- | --- |
+| Exports | `searchJobs(jobTitle, location, country)`, `detectCountry(location)`, `formatSalary(min,max)`, `AdzunaJob` type |
+| Env | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
+| Endpoint | `https://api.adzuna.com/v1/api/jobs/{country}/search/1?app_id&app_key&what&where?&category=it-jobs&results_per_page=10&content-type=application/json` |
+| Rules | Always `category=it-jobs`; omit `where` if location empty; default country `us` |
+
+**Pattern notes:** Follows `library-docs.md:184-274` exactly. `detectCountry()` is a string heuristic (`uk→gb, australia→au, canada→ca`, else `us`). Throws if Adzuna credentials missing or on non-ok response (caller maps to 502).
+
+#### `Job Matcher` — `agent/matcher.ts`
+File: `agent/matcher.ts`
+Last updated: 2026-09-01
+
+| Property | Notes |
+| --- | --- |
+| Exports | `scoreJobAgainstProfile(job, profile): Promise<ScoredJob>` |
+| Model | `OPENROUTER_MODEL` with fallback chain `OPENROUTER_FALLBACK_MODEL → OPENROUTER_SECONDARY_TEXT_MODEL` via `getClient()` |
+| Prompt | System: role+shape instruction; User: job title/company/location/description + profile summary (title/level/years/skills/industries/seeking/work_experience/education) |
+| Options | `response_format: json_object, temperature:0.3, max_tokens:300` |
+| Parse | `parseLenientJson()`; clamp 0-100; `matched_skills/missing_skills` → `string[]` max 8 |
+
+**Pattern notes:** Lives in `agent/` per `architecture.md:113` (agent owns matching). Reuses `lib/openrouter.ts` client + lenient parser. On any model failure after fallback chain, returns neutral `{matchScore:50, matchReason:"", matchedSkills:[], missingSkills:[]}` so one bad score never drops a job.
+
+#### `Agent Types` — `agent/types.ts`
+File: `agent/types.ts`
+Last updated: 2026-09-01
+
+| Property | Notes |
+| --- | --- |
+| Exports | `ScoredJob {matchScore, matchReason, matchedSkills, missingSkills}`, `ProfileForMatching` |
+
+#### `Find Jobs Route` — `app/api/agent/find/route.ts`
+File: `app/api/agent/find/route.ts`
+Last updated: 2026-09-01
+
+| Property | Notes |
+| --- | --- |
+| Method | `POST` `{jobTitle, location}` |
+| Auth | `createInsforgeServer().auth.getCurrentUser()` → 401 if missing |
+| Validation | `jobTitle` required (400), `location` optional |
+| Steps | `captureServerEvent job_search_started` → insert `agent_runs running` → `detectCountry` → `searchJobs` → 0-result early-`completed` → load `profiles` → parallel `scoreJobAgainstProfile` (concurrency 5, `Promise.allSettled`) → bulk `insert` `jobs` → `captureServerEvent job_found` per job → update `agent_runs completed` + `agent_logs success` |
+| Errors | Adzuna fail → `failed` + 502; insert fail → `failed` + 500; scoring reject → neutral 50; outer catch marks `failed` |
+
+**Pattern notes:** `runtime nodejs, maxDuration 60`. Uses `logAgent()` helper for `agent_logs` (best-effort). `formatSalary` from `lib/adzuna`. `MATCH_THRESHOLD` is re-exported via `lib/jobs-query.ts` (server query chain reads it directly there; this route does not need it because the response only returns `jobsFound` and `strongMatches >= 70` is a count, not a filter).
+
+#### `Utils` — `lib/utils.ts`
+File: `lib/utils.ts`
+Last updated: 2026-09-02
+
+| Property | Notes |
+| --- | --- |
+| Exports | `MATCH_THRESHOLD` (re-exported from `@/lib/jobs-query`), `cn(...classes)` |
+| Usage | `cn` for combining classnames; `MATCH_THRESHOLD` is canonically defined in `lib/jobs-query.ts` (so the server query and the client share the same constant) and re-exported here for backwards compatibility with `JobsList.tsx`. New code should import directly from `lib/jobs-query`. |
 
 ### Auth
 

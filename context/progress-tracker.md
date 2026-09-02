@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** 2 — Profile Page
-**Last completed:** 08 Resume PDF Generation from Profile (minimax-m3 model)
-**Next:** Fix TODOs below, then 09 Find Jobs Page — Full UI
+**Phase:** 3 — Find Jobs Page
+**Last completed:** 11 Filter + Sort + Pagination
+**Next:** 12 Job Details Page
 
 ---
 
@@ -36,9 +36,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### Phase 3 — Find Jobs Page
 
-- [ ] 09 Find Jobs Page — Full UI
-- [ ] 10 Adzuna Job Discovery
-- [ ] 11 Filter + Sort + Pagination
+- [x] 09 Find Jobs Page — Full UI
+- [x] 10 Adzuna Job Discovery
+- [x] 11 Filter + Sort + Pagination
 
 ### Phase 4 — Job Details Page
 
@@ -101,6 +101,41 @@ Update this file after every completed feature. Any AI agent reading this should
 ### 07 follow-up 3 — validation loosening
 - `profileSchema.work_experience.max(3)` → `.max(10)` to match the `WorkExperience` UI section (also bumped MAX_ROLES 3 → 10) and accept real resumes with 5–15 roles.
 - `profileSchema.job_titles_seeking.min(1)` → `.default([])` because a resume that only lists past experience has no "seeking" titles, and that gap shouldn't block saving. The completion check still nudges users to fill seeking titles — it just no longer prevents the save.
+
+### 09 Find Jobs Page — Full UI
+- Built `app/find-jobs/page.tsx` (Server Component) and the `components/find-jobs/*` tree: `SearchControls`, `JobsList` (owns filter + sort + page state), `MatchScoreBar`, `CompanyMark`, `JobsPagination`, plus `mock-jobs.ts` with 6 sample rows.
+- Mock data only — no Adzuna / DB calls. Filter and sort logic is in-memory and works against the 6-row mock, so the page is testable end-to-end. Feature 10 will replace the mock with `/api/agent/find` results; Feature 11 will swap the in-memory logic for `lib/adzuna` + DB queries.
+- **No SOURCE column** — the design (`context/designs/find-jobs.png`) does not show one, even though `context/build-plan.md:172` lists it. Design wins for this feature; revisit if Feature 12 (Job Details) implies a `source` filter.
+- **Navbar active state now uses an underline** (`border-b-2 border-accent`) in addition to the purple color. `ui-rules.md:34-36` says "No underline — active state is color change only" but the design shows the underline. Followed the design; documented the deviation in `ui-registry.md`. To reconcile, either update `ui-rules.md` to allow the underline, or drop it from the next design.
+- `Navbar` gained an optional `activePath?: string` prop. Currently only `/find-jobs/page.tsx` passes it (`activePath="/find-jobs"`). Homepage and Profile page still render with no active state — acceptable because the design only shows it for Find Jobs, but consider backfilling Dashboard/Profile pages when those land.
+- `MATCH_THRESHOLD = 70` was inlined in `JobsList.tsx` because `lib/utils.ts` did not exist yet — moved to `lib/utils.ts` in Feature 10 per `code-standards.md:266`.
+- Build clean, `/find-jobs` registered as a dynamic route (auth-checked by `proxy.ts:4`).
+
+### 10 Adzuna Job Discovery
+- Created `lib/adzuna.ts` following `library-docs.md:184-274` exactly: `searchJobs()` with `ADZUNA_APP_ID/KEY`, `category=it-jobs`, `results_per_page=10`, `detectCountry()` heuristic (`us` default, `gb/au/ca` keywords), `formatSalary()`.
+- Created `lib/utils.ts` with `MATCH_THRESHOLD = 70` (moved from `JobsList.tsx` inline) per `code-standards.md:266`.
+- Created `agent/types.ts` (`ScoredJob`, `ProfileForMatching`) and `agent/matcher.ts` (`scoreJobAgainstProfile`) reusing `lib/openrouter.ts` `getClient()` + `parseLenientJson()` with `OPENROUTER_MODEL` fallback chain, `temperature 0.3 / max_tokens 300`. Neutral `50` on failure so one bad LLM call never drops a job.
+- Created `app/api/agent/find/route.ts` (`POST {jobTitle, location}`) — auth → `job_search_started` → insert `agent_runs running` → `detectCountry` → `searchJobs` → 0 early-complete → load `profiles` → parallel scoring (concurrency 5, `allSettled`) → bulk insert `jobs` (mapping per `library-docs:244`) → `job_found` per job → update `agent_runs completed` + success log. Adzuna fail → `failed`+502, insert fail → `failed`+500.
+- Wired `components/find-jobs/SearchControls.tsx` to `POST /api/agent/find` with `credentials: "include"`, controlled inputs, `isSearching` spinner + disabled, inline `success/error` banner (reworded 2026-09-02 to start with "Saved N jobs" so the job count is unambiguous: all-strong / partial / none-strong variants; no-jobs case stays the same), `router.refresh()` on success. Removed the `e.preventDefault()` stub.
+- Updated `app/find-jobs/page.tsx` to query `jobs` for the current user (`select * where user_id order by found_at desc`) and map DB rows to `{id, company, role:title, matchScore:match_score, salary, dateFound:formatRelative(found_at)}`. Falls back to `MOCK_JOBS/MOCK_TOTAL` when no DB rows or on error so the page stays verifiable without Adzuna keys.
+- Build clean, `/api/agent/find` registered as `ƒ (Dynamic)` route (`runtime nodejs, maxDuration 60`).
+
+### 10 follow-up — removed mock fallback
+- The /find-jobs page now ships without mock data. `MOCK_JOBS` / `MOCK_TOTAL` are gone; `app/find-jobs/page.tsx` initializes `jobs = []` and `total = 0` and only ever replaces them with DB rows. `components/find-jobs/mock-jobs.ts` deleted. The `Job` type was moved to `components/find-jobs/types.ts` and is imported by `page.tsx` and `JobsList.tsx`.
+
+### 10 follow-up 2 — default location bug
+- Symptom: every search run returned 0 jobs in 1–2 s with status `completed` and `jobs_found: 0`. Database showed 10 completed `agent_runs` and 0 `jobs` rows. Adzuna was reachable and returned 2692 results for `Frontend Engineer` (US, no `where`).
+- Cause: `SearchControls` defaulted `location` state to the placeholder string `"Remote, New York..."` (the `...` is a UI ellipsis indicator). On submit, that literal string was passed to Adzuna as `where=Remote%2C+New+York...` which matched nothing.
+- Fix: `defaultLocation = ""` so the first submit omits `where` and Adzuna returns country-wide results; the `...` lives only in the input's `placeholder` attribute (unchanged). Confirmed: 0 jobs after fix when location is blank (US-wide `Frontend Engineer` returns results, but the `page.tsx` query still needs the auth/DB path to be exercised by the user; build clean, `ƒ /api/agent/find` registered).
+- `JobsList` distinguishes the two empty states: no rows at all → "No jobs found yet. Run a search above to find matches."; rows exist but filters exclude all → "No jobs match your filters." The pagination row is hidden when `total === 0` so we don't show "Showing 1 to 0 of 0 results".
+- Tradeoff: the Feature 09 verifiability guarantee (page renders something visible without backend) no longer applies. A user with no searches will see an empty state instead of mock rows — this is what the user asked for and aligns with the "core principle" that the page should show real data, not seeded data. `ui-registry.md` FindJobsPage / JobsList / Job Types entries updated; `npm run build` clean.
+
+### 11 Filter + Sort + Pagination
+- Promoted `lib/jobs-query.ts` to a single source of truth for `DEFAULT_PAGE_SIZE = 20`, `MATCH_THRESHOLD = 70`, `MATCH_FILTERS` / `SORT_OPTIONS` (option lists), `parsePage` / `parseFilter` / `parseSort` (URL → typed), `escapeIlike` (neutralises `%`, `_`, `\` in user search text), and the `MatchFilter` / `SortKey` / `JobRow` / `ListJobsResult` types. `MATCH_THRESHOLD` re-exported from `lib/utils.ts` for backwards compatibility — new code imports directly from `lib/jobs-query`.
+- `app/find-jobs/page.tsx` now reads `searchParams: Promise<{ page?, filter?, sort?, q? }>` and runs an InsForge PostgREST chain: `.from("jobs").select("*", { count: "exact" }).eq("user_id", user.id)` → optional `.gte("match_score", 70)` / `.lt("match_score", 70)` for the match filter → optional `.or("company.ilike.%…%,title.ilike.%…%")` for text search → `.order("match_score", { ascending: false }).order("found_at", { ascending: false })` (default) / `.order("found_at", { ascending: false | true })` (newest / oldest) → `.range((page-1)*20, page*20-1)`. `count: "exact"` populates `total` from the `content-range` response header. Calls `notFound()` if `page > pageCount` and there are results. Wrapped in try/catch — any error leaves the list empty. `start` / `end` / `pageCount` are derived on the server.
+- `components/find-jobs/JobsList.tsx` is now URL-driven. It receives the server-resolved `jobs`, `total`, `page`, `pageSize`, `pageCount`, `start`, `end`, `filter`, `sort`, `query` as props and pushes changes via `router.push` inside `startTransition`. Filter / sort / page resets `page` to 1 implicitly (the `pushParams` helper always deletes `page` unless the caller explicitly sets it). The list dims (`opacity-60`) while the transition is pending. Local state: only the text input — typing doesn't fire a server roundtrip per keystroke; pressing Enter or clicking the input pushes the trimmed value to `?q=`. The input is intentionally not synced back to `?q=` on every keystroke (Linear / GitHub pattern — only the URL value seeds it on mount).
+- `components/find-jobs/JobsPagination.tsx` `buildPageList(current, total)` rewritten: always includes page 1, page `total`, and `current ± 1`, with ellipsis inserted between any gap > 1. Returns `1..N` for `total <= 5`, `[]` for `total <= 1`. Old version always emitted `[1, 2, 3, "ellipsis", total]` for `total > 5` and never reflected the current page, so navigating past page 3 left the "active" highlight on page 3.
+- `ui-registry.md` updated: JobsList, JobsPagination, FindJobsPage, new JobsQuery entry, Utils notes. `npm run build` clean, `npm run lint` (eslint on the four files) clean.
 
 ## Notes
 

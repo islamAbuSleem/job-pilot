@@ -3,9 +3,18 @@ import { Sparkles } from "lucide-react";
 
 type Props = {
   isAuthed: boolean;
+  activePath?: string;
 };
 
-export function Navbar({ isAuthed }: Props) {
+function linkClass(active: boolean) {
+  return `text-[14px] font-medium leading-5 transition-colors ${
+    active
+      ? "text-accent border-b-2 border-accent pb-1"
+      : "text-text-dark hover:text-accent"
+  }`;
+}
+
+export function Navbar({ isAuthed, activePath }: Props) {
   return (
     <header className="w-full bg-surface border-b border-border">
       <nav className="mx-auto max-w-[1440px] h-16 px-6 flex items-center justify-between">
@@ -25,26 +34,17 @@ export function Navbar({ isAuthed }: Props) {
 
         <ul className="hidden md:flex items-center gap-8">
           <li>
-            <Link
-              href="/dashboard"
-              className="text-[14px] font-medium leading-5 text-text-dark hover:text-accent transition-colors"
-            >
+            <Link href="/dashboard" className={linkClass(activePath === "/dashboard")}>
               Dashboard
             </Link>
           </li>
           <li>
-            <Link
-              href="/find-jobs"
-              className="text-[14px] font-medium leading-5 text-text-dark hover:text-accent transition-colors"
-            >
+            <Link href="/find-jobs" className={linkClass(activePath === "/find-jobs")}>
               Find Jobs
             </Link>
           </li>
           <li>
-            <Link
-              href="/profile"
-              className="text-[14px] font-medium leading-5 text-text-dark hover:text-accent transition-colors"
-            >
+            <Link href="/profile" className={linkClass(activePath === "/profile")}>
               Profile
             </Link>
           </li>
