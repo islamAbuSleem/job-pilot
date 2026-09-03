@@ -1,12 +1,14 @@
-import { Briefcase, Building2, Search } from "lucide-react";
+import { Briefcase, Building2 } from "lucide-react";
 import type { JobResearchDossier } from "@/lib/job-details";
+import { ResearchCompanyButton } from "./ResearchCompanyButton";
 
 type Props = {
+  jobId: string;
   company: string;
   dossier: JobResearchDossier | null;
 };
 
-export function CompanyResearchCard({ company, dossier }: Props) {
+export function CompanyResearchCard({ jobId, company, dossier }: Props) {
   return (
     <section className="bg-surface border border-border rounded-2xl overflow-hidden">
       <div className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -16,15 +18,7 @@ export function CompanyResearchCard({ company, dossier }: Props) {
             Company Research
           </h2>
         </div>
-        <button
-          type="button"
-          disabled
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-[14px] font-medium leading-5 text-accent-foreground opacity-60 cursor-not-allowed w-full sm:w-auto"
-          aria-label="Research Company (coming in a future update)"
-        >
-          <Search className="w-4 h-4" aria-hidden />
-          Research Company
-        </button>
+        <ResearchCompanyButton jobId={jobId} company={company} />
       </div>
       <div className="border-t border-border p-6">
         {dossier ? <DossierView dossier={dossier} /> : <EmptyState company={company} />}

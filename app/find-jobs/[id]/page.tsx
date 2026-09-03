@@ -75,6 +75,7 @@ export default async function JobDetailsPage({
               externalApplyUrl={job.externalApplyUrl}
             />
             <CompanyResearchCard
+              jobId={job.id}
               company={job.company}
               dossier={job.companyResearch}
             />
