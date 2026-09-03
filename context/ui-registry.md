@@ -641,6 +641,24 @@ Last updated: 2026-09-03
 
 **Pattern notes:** Client component. Renders the Adzuna `about_role` snippet first (clamped via `useLayoutEffect` if it actually overflows 6 lines on the current card width — measurement against `bodyRef.current.scrollHeight` vs `lineHeight * 6`). Below the body is a `Show full description` / `Hide full description` toggle (with a rotating `ChevronDown` icon) that expands an inline `<iframe src={externalApplyUrl}>` inside a `rounded-lg border border-border overflow-hidden` wrapper. The iframe is `min-h-[600px]`, has `referrerPolicy="no-referrer"`, and is sandboxed (`allow-same-origin allow-scripts allow-forms` — no `allow-top-navigation` to prevent clickjacking). Iframe-load detection: on `onLoad` the component tries to read `contentDocument.body.innerText`; if it's empty or throws (cross-origin) the fallback panel renders instead. Fallback: muted copy "This site doesn't allow embedding." with an `Open full description in new tab` `text-accent` link to the same `externalApplyUrl`. **The iframe is the supported path for the full description — Adzuna's `redirect_url` 302-redirects to the actual ATS page; the browser follows the redirect naturally, but `X-Frame-Options`/`Content-Security-Policy: frame-ancestors` may block embedding on some sites (the fallback handles this).** Empty description renders a muted "No description available for this role." line.
 
+#### `ResearchCompanyButton` — `components/job-details/ResearchCompanyButton.tsx`
+File: `components/job-details/ResearchCompanyButton.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-accent` (button) |
+| Border | none |
+| Border radius | `rounded-md` (button) |
+| Text — primary | `text-accent-foreground` (button `text-[14px] font-medium leading-5`) |
+| Text — error | `text-error` (failure alert `text-[13px] leading-5`, `sm:text-right`) |
+| Spacing | `px-4 py-2` (button), `gap-2` (icon + label, wrapper), wrapper `flex-col items-stretch sm:items-end w-full sm:w-auto` |
+| Hover state | `hover:bg-accent-dark` (button), `disabled:opacity-60 disabled:cursor-not-allowed` (researching) |
+| Shadow | none |
+| Accent usage | `bg-accent text-accent-foreground` (button) |
+
+**Pattern notes:** Client component (`useState` for researching + error, `useRouter().refresh()` on success). POSTs `/api/jobs/{id}/research` with `credentials: "include"`. Idle: `Search` icon + "Research Company". Researching: spinner + "Researching…" + disabled. On `{ success: false }` shows the server message in a `role="alert"` line under the button; network throws map to "Research failed. Please try again." Success path calls `router.refresh()` so the server-rendered card re-fetches the saved dossier — no local dossier state. `aria-label` switches between `Research {company}` and `Researching {company}`.
+
 #### `CompanyResearchCard` — `components/job-details/CompanyResearchCard.tsx`
 File: `components/job-details/CompanyResearchCard.tsx`
 Last updated: 2026-09-03
@@ -655,9 +673,9 @@ Last updated: 2026-09-03
 | Text — muted | `text-text-muted` (sources `text-[12px] leading-4 break-all`) |
 | Spacing | `p-6`, `gap-2` (heading row), `gap-4` (heading + button), `gap-6` (dossier blocks), `mt-3` (empty state heading), `mt-1` (helper), `py-8` (empty state) |
 | Hover state | `hover:bg-accent-dark` would apply when the button is enabled (Feature 13) |
-| Accent usage | `text-accent` (Briefcase icon, dossier sub-labels), `bg-accent text-accent-foreground` (Research Company button — disabled in this feature) |
+| Accent usage | `text-accent` (Briefcase icon, dossier sub-labels), `bg-accent text-accent-foreground` (Research Company button — live `ResearchCompanyButton` since Feature 13) |
 
-**Pattern notes:** Server component. Header row has the section heading on the left and the "Research Company" primary button on the right; `border-t border-border` separates the header from the content below. Content is either the empty state (default — `Building2` icon, "No research yet" heading, helper text) or the dossier renderer (9 fields: companyOverview, techStack, culture, whyThisRole, yourEdge, gapsToAddress, smartQuestions, interviewPrep, sources — see `build-plan.md:354-366` for the data shape). Each dossier sub-block is a `DossierBlock` helper with uppercase label + content. The "Your Edge" block has an `accent-light/accent-muted` highlight per the build plan. The Research Company button is intentionally `disabled` in Feature 12 — Feature 13 wires the agent and removes the disabled state.
+**Pattern notes:** Server component. Header row has the section heading on the left and the "Research Company" primary button on the right; `border-t border-border` separates the header from the content below. Content is either the empty state (default — `Building2` icon, "No research yet" heading, helper text) or the dossier renderer (9 fields: companyOverview, techStack, culture, whyThisRole, yourEdge, gapsToAddress, smartQuestions, interviewPrep, sources — see `build-plan.md:354-366` for the data shape). Each dossier sub-block is a `DossierBlock` helper with uppercase label + content. The "Your Edge" block has an `accent-light/accent-muted` highlight per the build plan. The header button is the live `ResearchCompanyButton` (Feature 13) — takes `jobId`, POSTs `/api/jobs/{id}/research`, shows spinner + `router.refresh()` on success.
 
 #### `ApplyButton` — `components/job-details/ApplyButton.tsx`
 File: `components/job-details/ApplyButton.tsx`

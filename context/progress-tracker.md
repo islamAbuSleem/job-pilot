@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** 4 — Job Details Page
-**Last completed:** 12 Job Details Page
-**Next:** 13 Company Research Agent
+**Phase:** 5 — Dashboard
+**Last completed:** 13 Company Research Agent
+**Next:** 14 Dashboard Page — Full UI
 
 ---
 
@@ -43,7 +43,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ### Phase 4 — Job Details Page
 
 - [x] 12 Job Details Page
-- [ ] 13 Company Research Agent
+- [x] 13 Company Research Agent
 
 ### Phase 5 — Dashboard
 
@@ -206,6 +206,18 @@ Update this file after every completed feature. Any AI agent reading this should
 - `JobDescriptionCard` now shows the Adzuna snippet (clamped via `useLayoutEffect` if it actually overflows 6 lines) and a single `View full description on the main site` `text-accent` link below. No toggle, no iframe, no client fetch state.
 - The link opens `externalApplyUrl` in a new tab (same destination as the top-of-page "View Job Post" button — surfaced here for discoverability right under the truncated snippet).
 - `npm run build` clean, eslint clean. No new dependencies.
+
+### 13 Company Research Agent
+- Installed `@browserbasehq/sdk@^2.19.1` + `@browserbasehq/stagehand@^4.0.2` (both already in the approved-deps list) and `zod@4.4.3` as a direct dep. `GROQ_API_KEY` added to `.env.local`; `BROWSERBASE_API_key` renamed to `BROWSERBASE_API_KEY` (nothing referenced the old casing).
+- New `lib/browserbase.ts` (`launchResearchBrowser()` via the stagehand package's `browserbase.launch({ apiKey, projectId })`), `lib/stagehand.ts` (`createStagehand(browser)` with `groq/llama-3.3-70b-versatile`), `lib/company-url.ts` (`deriveCompanyHomepageUrl()` — strips Inc/LLC/Ltd/Corp/Co suffixes, lowercases, strips non-alphanumerics → `https://{clean}.com`; Google-search fallback when empty).
+- New `agent/research.ts` (`researchCompany(job, profile)`): homepage `extract()` with the 4-field schema (oneLiner/productSummary/signals/pageLinks) → skip-to-synthesis when both oneLiner and productSummary are empty → up to 3 sub-page extracts preferring about/blog/engineering/product over careers/team → `stagehand.close()` in `finally` → OpenRouter synthesis (temperature 0.4, max_tokens 800, same 3-model fallback chain as the matcher, `parseLenientJson`). Always returns a complete dossier; per-step try/catch with `[agent/research]` log prefix.
+- New `app/api/jobs/[id]/research/route.ts` (`POST`, `runtime nodejs`, no `maxDuration`): auth → load job (scoped to user) → load profile → create `agent_runs` row (`job_title_searched: "research:{company}"`) → `researchCompany()` → save dossier to `jobs.company_research` → `company_researched` PostHog event → `revalidatePath('/find-jobs/[id]')`. Returns `{ success, data: { dossier } }`.
+- New `components/job-details/ResearchCompanyButton.tsx` (client): idle / researching (spinner + disabled) / error (`role="alert"` under the button); success calls `router.refresh()` so the server card re-renders with the dossier. Wired into `CompanyResearchCard` header (new `jobId` prop, passed from the page).
+- **Stagehand 4 vs the old docs**: `library-docs.md` examples target Stagehand 0.x (`new Stagehand({ browserbaseSessionID })`, `stagehand.page`, `disablePino`). Stagehand 4 uses `browserbase.launch()` → `Stagehand.create({ browser, model })`, `browser.context.pages()`, `extract(instruction, schema)`. All Feature 13 code follows the v4 API verified against `node_modules/@browserbasehq/stagehand/dist/index.d.mts` + README.
+- **Stagehand model allowlist**: v4 hardcodes `modelName` to openai/anthropic/google/groq/cerebras literals — OpenRouter is NOT accepted (Zod template-literal validation). `extract()` calls use `groq/llama-3.3-70b-versatile` + `GROQ_API_KEY`; the final synthesis step uses the OpenRouter chain via `lib/openrouter.ts` (unchanged).
+- **Turbopack**: `@browserbasehq/stagehand` resolves extension assets via `new URL("../", import.meta.url)`, which Turbopack cannot bundle — added both browserbase packages to `serverExternalPackages` in `next.config.ts` (same treatment as `@napi-rs/canvas` / `pdfjs-dist`).
+- **Zod version pin**: top-level `zod` must be exactly `4.4.3` to match stagehand's nested copy — otherwise the `extract(instruction, schema)` overload fails type-check (`_zod.version.minor` literal mismatch) and TS silently falls back to the freeform overload. Do not bump top-level zod without checking stagehand's nested version.
+- `npm run build` clean (`/api/jobs/[id]/research` registered as `ƒ (Dynamic)`); eslint clean on all touched files.
 
 ## Notes
 

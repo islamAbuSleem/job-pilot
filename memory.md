@@ -1,85 +1,70 @@
-# Memory — Feature 12 (Job Details Page) + 11 Follow-up (text-search comma fix)
+# Memory — Feature 13 (Company Research Agent)
 
 Last updated: 2026-09-03
 
 ## What was built
 
-**11 follow-up — comma in text search broke the list (fixed).** `lib/jobs-query.ts:escapeIlike()` now escapes only `"` → `\"`; `app/find-jobs/page.tsx:78` wraps the ilike values in double quotes inside `or=()`. Live-verified on the InsForge gateway (`/api/database/records/...`) with a throwaway test table (since dropped). Search terms with commas, spaces, and literal quotes now return correct rows; an unquoted comma 400'd and the list silently went empty.
+**Feature 13 — Company Research Agent** (working tree, not yet committed).
 
-**Feature 12 — Job Details Page.** All on `main` (not yet committed; working tree).
+- `lib/browserbase.ts` — `launchResearchBrowser()` via the stagehand package's `browserbase.launch({ apiKey, projectId })`. Reads `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID`.
+- `lib/stagehand.ts` — `createStagehand(browser)` with `groq/llama-3.3-70b-versatile` + `GROQ_API_KEY`. Stagehand 4 API: `Stagehand.create({ browser, model })`, NOT `new Stagehand({ browserbaseSessionID })`.
+- `lib/company-url.ts` — `deriveCompanyHomepageUrl()`: strips Inc/LLC/Ltd/Corp/Co suffixes, lowercases, strips non-alphanumerics → `https://{clean}.com`; Google-search fallback when empty. (Deliberately does NOT follow the Adzuna redirect — CloudFront 403s server-side fetches, proven in Feature 12 follow-up 5.)
+- `agent/research.ts` — `researchCompany(job, profile)`: homepage `extract()` (oneLiner/productSummary/signals/pageLinks) → skip-to-synthesis when both oneLiner and productSummary are empty → up to 3 sub-page extracts preferring about/blog/engineering/product → `stagehand.close()` in `finally` → OpenRouter synthesis (temperature 0.4, max_tokens 800, same 3-model chain + `parseLenientJson` as the matcher). Always returns a complete dossier.
+- `app/api/jobs/[id]/research/route.ts` — `POST`, `runtime nodejs`, no `maxDuration`. Auth → load job (user-scoped) → load profile → create `agent_runs` row (`job_title_searched: "research:{company}"`) → research → save dossier to `jobs.company_research` → `company_researched` PostHog event → `revalidatePath`. Returns `{ success, data: { dossier } }`.
+- `components/job-details/ResearchCompanyButton.tsx` — client button: idle / researching (spinner + disabled) / error (`role="alert"`); success calls `router.refresh()`. Wired into `CompanyResearchCard` header (new `jobId` prop, passed from the page).
+- Deps installed: `@browserbasehq/sdk@^2.19.1`, `@browserbasehq/stagehand@^4.0.2`, `zod@4.4.3` (exact pin — see Problems solved).
+- `next.config.ts` — added both browserbase packages to `serverExternalPackages`.
+- `.env.local` — added `GROQ_API_KEY` ([REDACTED]); renamed `BROWSERBASE_API_key` → `BROWSERBASE_API_KEY` (nothing referenced the old casing).
 
-- `app/find-jobs/[id]/page.tsx` — Server Component. Reads `params: Promise<{ id: string }>` (Next 16 async), fetches the row via `createInsforgeServer().database.from("jobs").select("*").eq("id", id).maybeSingle()`, maps through `mapJobRow()`, and renders the eight sections. On any error or missing row → `notFound()`. Auth gate already covers it via `proxy.ts:16` (`/find-jobs/*` is a protected path).
-- `app/find-jobs/[id]/error.tsx` — PostHog-reporting error boundary, mirrors `app/profile/error.tsx`.
-- `components/job-details/BackLink.tsx` — `< ArrowLeft` link, default `/find-jobs`.
-- `components/job-details/JobHeaderCard.tsx` — Building2 48×48 + title (`text-[24px] md:text-[28px] font-bold leading-tight tracking-tight`) + `View Job Post` external link. Score pill (`bg-success-lightest text-success-foreground rounded-full`) sits next to the company name.
-- `components/job-details/InfoCardsRow.tsx` — 4-card grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6`. Each card: 40×40 colored icon block + value + uppercase label. Salary icon `bg-success-light text-success`; Location `bg-info-light text-info-dark`; Job Type `bg-accent-light text-accent`; Date Found `bg-surface-tertiary text-text-secondary`. Missing values render as `—`.
-- `components/job-details/MatchReasonCard.tsx` — Sparkles icon + uppercase "AI Match Reasoning" + the GPT-4o paragraph.
-- `components/job-details/SkillsCard.tsx` — Two groups: "You have" (matched, `bg-success-lightest` / `Check`) and "Gap skills" (missing, `bg-accent-muted` / `X`). Each only renders if its array is non-empty.
-- `components/job-details/JobDescriptionCard.tsx` — FileText icon + "Job Description" heading + prose `about_role` (`whitespace-pre-line`).
-- `components/job-details/CompanyResearchCard.tsx` — Two halves separated by `border-t border-border`: header (heading + disabled "Research Company" button) and content (empty state OR 9-field dossier renderer). Dossier renders all fields from `lib/job-details.ts:JobResearchDossier` per `build-plan.md:354-366`; "Your Edge" is highlighted with `border-accent-light bg-accent-muted/50`. Empty state: Building2 + "No research yet" + helper text mentioning the company name.
-- `components/job-details/ApplyButton.tsx` — Full-width `bg-accent` button. External `<a target="_blank">`. Empty-URL fallback is a muted card.
-- `lib/job-details.ts` — `JobResearchDossier` type, `JobDetails` type, `mapJobRow()` mapper. Every nullable DB column is normalized (e.g., `title ?? "Untitled role"`, `match_score ?? 50`).
-- `lib/jobs-format.ts` — `formatJobType()` (`fulltime` → "Full-time", empty → `—") and `formatRelative()` (extracted from `app/find-jobs/page.tsx:20-31` so both pages share the same logic).
-- `components/find-jobs/JobsList.tsx` — Rows are now `<Link href="/find-jobs/{id}">` (Next 16 prefetches these in the viewport). `<li>` carries the row's `border-b`/hover; `<Link>` carries the grid + cell padding + `focus-visible:bg-surface-secondary`.
-
-`npm run build` clean; new route `/find-jobs/[id]` registered as `ƒ (Dynamic)`. eslint clean.
+`npm run build` clean (`/api/jobs/[id]/research` registered as `ƒ (Dynamic)`); eslint clean.
 
 ## Decisions made
 
-- **Job Description shape** — design shows a single prose block, not the 5-section `About / Responsibilities / Requirements / Nice to have / Benefits` layout from `build-plan.md:227`. Followed the design. The 5 sections need a job-description-extraction step (Adzuna only writes `about_role`); that belongs to the Adzuna-replacement feature, not the UI build.
-- **Company Research card** — built the dossier renderer now per the build-plan spec (renders all 9 fields) but the card defaults to the empty state. `Research Company` button is `disabled` with an `aria-label`; Feature 13 wires the agent. The card reads `jobs.company_research` jsonb on every render — null → empty state, set → renderer.
-- **Page column width** — `mx-auto w-full max-w-[1080px]` matches the profile form column. The design's cards sit between the profile column and the 1440px page container; 1080px keeps them readable on small viewports without stretching.
-- **proxy.ts** — no change needed. `pathname.startsWith("/find-jobs/")` already covers `/find-jobs/[id]`.
-- **Map a single row, not a list** — `app/find-jobs/page.tsx` uses `select("*")` and maps through `mapJobRow()`; for the list view, it does the same. Two maps because the two pages have different `Job` vs `JobDetails` shapes (the list strips to six fields, the details page keeps all 23).
-- **Skills pill colors** — Matched = `bg-success-lightest text-success-foreground` with `Check` icon; Missing = `bg-accent-muted text-accent` with `X` icon. Both follow `ui-tokens.md:172-173` exactly. The design's purple "Java (Spring Boot)" gap pill is intentional — not red.
-- **`searchParams` for the page** — none. The page is keyed by `id` only; previous `?page=&filter=&sort=&q=` lives on the list page, not the detail.
-- **No new dependencies** — used only `lucide-react` icons already in the project; no new packages installed. `context/code-standards.md:308-322` lists the approved dependency set and nothing in Feature 12 required an addition.
+- **Homepage URL: derive from `job.company`, don't follow the Adzuna redirect.** CloudFront blocks the redirect fetch (Feature 12 follow-up 5). User confirmed.
+- **Two LLM providers, split by step.** Stagehand 4 hardcodes `modelName` to openai/anthropic/google/groq/cerebras literals (Zod template-literal validation) — OpenRouter is rejected. So: `extract()` calls use Groq (`llama-3.3-70b-versatile`); final synthesis uses the OpenRouter chain via `lib/openrouter.ts`. User confirmed both.
+- **Route shape: synchronous, no `maxDuration`.** The route blocks until research completes and returns the dossier; client shows spinner + `router.refresh()` on success. Browserbase runs on its own infra per `library-docs.md:296-298`.
+- **Always return a dossier.** Browser failure → synthesize from job + profile alone; synthesis failure → empty dossier shape. Route never 500s on research failure (only on auth/job-not-found/DB-write failure).
+- **Single Browserbase session**, 120s timeout, sequential visits, max 3 sub-pages — free-plan limit per `library-docs.md:300-303`.
+- **No `/remember`-style secrets in this file.** Groq key lives only in `.env.local` (gitignored).
 
 ## Problems solved
 
-- **`pdf-parse` ESM class API** (carryover) — `new PDFParse({ data: uint8 }).getText()`. The old `import pdf from "pdf-parse"; pdf(buffer)` default-export pattern throws "Export default doesn't exist" with the new version. Used in `app/api/resume/extract/route.ts`.
-- **Text search with a comma 400'd** — found in the Feature 11 audit. The InsForge gateway 400s on unquoted commas inside `or=()` values; the try/catch in `app/find-jobs/page.tsx` swallowed the 400, so the list silently went empty. Verified live: the gateway's or=() parser splits on unescaped commas (`a,b%` becomes invalid), backslash-escape of `,` is not honored, but **double-quoting** the value (`"a,b%"`) is stripped by the gateway and parses fine. Fix: wrap ilike values in double quotes; `escapeIlike()` now only escapes `"`. Side effect: backslash-escape of `%`/`_` is also dead (the gateway drops the backslash, leaving the wildcard) — the old `escapeIlike` was inert, simplified.
-- **Backslash in JSON tool parameters** (workflow issue, not a code issue) — PowerShell 5.1's `Get-Content` decodes UTF-8 as CP1252, so non-ASCII characters (e.g. U+2026 `…`) in `ui-registry.md` show as `…` mojibake in console output. The actual file is fine UTF-8. The Edit tool reads/writes UTF-8 correctly, but `oldString` must contain the literal U+2026 byte sequence — three ASCII dots won't match.
+- **Turbopack can't bundle `@browserbasehq/stagehand`.** It resolves extension assets via `new URL("../", import.meta.url)`, which Turbopack can't statically resolve (`Module not found: Can't resolve '../'`). Fixed with `serverExternalPackages` — same treatment as `@napi-rs/canvas` / `pdfjs-dist` from Feature 07.
+- **Zod version mismatch breaks `extract(instruction, schema)` typing.** Top-level `zod` resolved to 4.5.4 while stagehand's nested copy is 4.4.3; the `_zod.version.minor` literal (`4` vs `5`) fails the overload, and TS silently falls back to the freeform overload (returning `{ extraction: string }` instead of the schema shape). Fixed by pinning top-level `zod@4.4.3`. Do NOT bump top-level zod without checking stagehand's nested version.
+- **`library-docs.md` Stagehand examples target v0.x** (`new Stagehand({ browserbaseSessionID })`, `stagehand.page`, `disablePino`). Stagehand 4 uses `browserbase.launch()` → `Stagehand.create({ browser, model })`, `browser.context.pages()`, `extract(instruction, schema, options?)`. All Feature 13 code was verified against `node_modules/@browserbasehq/stagehand/dist/index.d.mts` + README, not the docs file.
 
 ## Current state
 
-- `main` is at `b48c914` (from 2026-09-02) plus the uncommitted working tree:
-  - `M app/find-jobs/page.tsx` (comma fix)
-  - `M components/find-jobs/JobsList.tsx` (row link)
-  - `M lib/jobs-query.ts` (escapeIlike)
-  - `M context/progress-tracker.md` (12 + 11-follow-up entries)
-  - `M context/ui-registry.md` (JobsList + Job Details section)
-  - `?? app/find-jobs/[id]/`
-  - `?? components/job-details/`
-  - `?? lib/job-details.ts`
-  - `?? lib/jobs-format.ts`
-- `npm run build` clean. Routes: `/`, `/login`, `/dashboard`, `/profile`, `/find-jobs`, `/find-jobs/[id]`, `/api/agent/find`, `/api/resume/*`. Proxy (Next 16 middleware) is registered.
-- `OPENROUTER_*` keys in `.env.local` (gitignored, not in this file). InsForge anon key in `.env.local` and service key in `.insforge/project.json`. ADZUNA_APP_ID/KEY in `.env.local`. PostHog keys in `.env.local`.
-- `pdf-parse` + `openai` + `@react-pdf/renderer` + `pdfjs-dist` + `@napi-rs/canvas` are installed. `react-dropzone` for resume upload.
-- `lib/job-details.ts` is the canonical mapper for the `jobs` table on the detail page. `components/find-jobs/JobsList.tsx` uses its own inline mapper (smaller shape: 6 fields).
-- `proxy.ts` protects `/dashboard`, `/profile`, `/find-jobs/*` (covers `/find-jobs/[id]`). Public: `/`, `/login`, `/api/auth/*`.
+- `main` is at `5c48c60` (docs commit for Feature 12) plus the uncommitted working tree:
+  - `M package.json`, `M package-lock.json` (browserbase/stagehand/zod)
+  - `M next.config.ts` (serverExternalPackages)
+  - `M lib/browserbase.ts` (rewritten for Stagehand 4 launch pattern)
+  - `M components/job-details/CompanyResearchCard.tsx` (live button, jobId prop)
+  - `M app/find-jobs/[id]/page.tsx` (passes jobId)
+  - `M context/progress-tracker.md` (Phase 5, 13 checked + decisions)
+  - `M context/ui-registry.md` (ResearchCompanyButton entry, card entry updated)
+  - `?? lib/stagehand.ts`, `?? lib/company-url.ts`, `?? agent/research.ts`
+  - `?? app/api/jobs/[id]/research/`
+  - `?? components/job-details/ResearchCompanyButton.tsx`
+  - (`.env.local` modified but gitignored — GROQ_API_KEY + BROWSERBASE_API_KEY casing fix)
+- `npm run build` clean. Routes now include `/api/jobs/[id]/research`. `zod` already in the approved-deps list (`code-standards.md:319`), no standards update needed.
+- **NOT yet live-tested end-to-end** — no real Browserbase session has been run (costs credits). The button, route, and dossier renderer are wired; first real research run will exercise the whole chain.
 
 ## User workflow rules
 
-- One branch per feature off `main`, but follow-ups have been pushed directly to `main` since 2026-08-29; user accepts this and merges via GitHub web UI. No `gh` CLI configured.
+- Direct pushes to `main` accepted; merges via GitHub web UI. No `gh` CLI configured.
 - Never commit secrets. `.env.local` is gitignored.
-- Build clean before every commit. `npm run build` checks 13 routes.
-- Before any third-party library, load its installed skill first, then read `context/library-docs.md`.
+- Build clean before every commit. `npm run build` checks 14 routes now.
+- Before any third-party library, load its installed skill first, then read `context/library-docs.md`. (Note: `library-docs.md` Stagehand section is stale v0.x — the installed `index.d.mts` + README are authoritative for v4.)
 
 ## Next session starts with
 
-Next feature: **Feature 13 — Company Research Agent** (`context/build-plan.md:242-386`).
-
-- `POST /api/agent/research` receives `jobId`. Loads the job row from DB, loads the user's profile from DB, derives the company homepage URL by following the Adzuna `redirect_url` with a server-side `fetch(redirect_url, { redirect: "follow" })`, strips subdomains (e.g. `jobs.stripe.com` → `stripe.com`), constructs `https://{rootDomain}`. Falls back to `https://www.{company}.com` if the Adzuna redirect lands on adzuna.com or throws.
-- Opens a single Browserbase session with Stagehand. Homepage `extract()` (Zod schema with `oneLiner`, `productSummary`, `signals`, `pageLinks`) — if both `oneLiner` and `productSummary` are empty, skip sub-pages and go straight to synthesis.
-- Up to 3 sub-pages (`about` / `blog` / `engineering` / `product` preferred over `careers`/`team`). Each `extract()` is wrapped in try/catch.
-- GPT-4o synthesis (after browser closes) — 9-field dossier (see `lib/job-details.ts:JobResearchDossier` and `build-plan.md:354-366`). `temperature: 0.4`, `response_format: json_object`. Always returns a complete dossier — never empty even if browser research failed.
-- Saves to `jobs.company_research` jsonb. Fires `company_researched` PostHog event.
-- Wires `Research Company` button on `components/job-details/CompanyResearchCard.tsx` to call the route; the button is currently `disabled` with an `aria-label` explaining the future-state.
-- Browserbase runs on its own infra (not inside Next.js), so don't add `maxDuration` to the route. Use `nodejs` runtime.
+1. Commit + push the Feature 13 working tree (3 commits suggested: `feat(research): browser session + agent pipeline`, `feat(job-details): wire Research Company button`, `docs(context): register Feature 13`).
+2. First live research run against a real job to verify the whole chain (Browserbase session → extracts → synthesis → dossier renders). Watch Browserbase credit usage.
+3. Then Feature 14 — Dashboard Page Full UI (`context/build-plan.md:388+`).
 
 ## Open questions
 
-- Free-tier model rotation status for the synthesis prompt — the build plan still says `gpt-4o` is the model. The project has been using OpenRouter free models for Feature 07 (extraction) — does the same fallback chain apply to synthesis? If yes, update `build-plan.md:321-324` to use the OpenRouter chain. If no, `gpt-4o` stays.
-- `POST /api/agent/research` revalidation: after the agent saves the dossier, the page should re-render with the dossier. Use `revalidatePath(`/find-jobs/${jobId}`)` from the route handler. Verify Next 16 supports this from a route handler.
-- `jsonschema -> Zod` for the synthesis response: the synthesis step must return valid JSON matching the dossier shape. Use the same lenient JSON parser (`parseLenientJson()` in `lib/openrouter.ts`) — synthesis models occasionally wrap JSON in ```json fences.
+- Groq free-tier rate limits (30 RPM) vs research burst: homepage + up to 3 sub-page extracts = up to 4 Groq calls per research click, sequential. Fine for single-user, but rapid double-clicks could 429 — the button disables while researching, which mitigates it.
+- `library-docs.md` Stagehand + Browserbase sections still describe v0.x. Should they be updated to the v4 API, or left as-is with a pointer to the installed package docs? Left as-is for now (out of scope).
+- `code-standards.md:308` still says `@insforge/ssr` while the project uses `@insforge/sdk` (pre-existing drift, noted in progress tracker "02 Auth"). Out of scope.
