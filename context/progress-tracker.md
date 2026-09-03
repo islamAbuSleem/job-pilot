@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** 3 — Find Jobs Page
-**Last completed:** 11 Filter + Sort + Pagination
-**Next:** 12 Job Details Page
+**Phase:** 4 — Job Details Page
+**Last completed:** 12 Job Details Page
+**Next:** 13 Company Research Agent
 
 ---
 
@@ -42,7 +42,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### Phase 4 — Job Details Page
 
-- [ ] 12 Job Details Page — Full UI
+- [x] 12 Job Details Page
 - [ ] 13 Company Research Agent
 
 ### Phase 5 — Dashboard
@@ -136,6 +136,76 @@ Update this file after every completed feature. Any AI agent reading this should
 - `components/find-jobs/JobsList.tsx` is now URL-driven. It receives the server-resolved `jobs`, `total`, `page`, `pageSize`, `pageCount`, `start`, `end`, `filter`, `sort`, `query` as props and pushes changes via `router.push` inside `startTransition`. Filter / sort / page resets `page` to 1 implicitly (the `pushParams` helper always deletes `page` unless the caller explicitly sets it). The list dims (`opacity-60`) while the transition is pending. Local state: only the text input — typing doesn't fire a server roundtrip per keystroke; pressing Enter or clicking the input pushes the trimmed value to `?q=`. The input is intentionally not synced back to `?q=` on every keystroke (Linear / GitHub pattern — only the URL value seeds it on mount).
 - `components/find-jobs/JobsPagination.tsx` `buildPageList(current, total)` rewritten: always includes page 1, page `total`, and `current ± 1`, with ellipsis inserted between any gap > 1. Returns `1..N` for `total <= 5`, `[]` for `total <= 1`. Old version always emitted `[1, 2, 3, "ellipsis", total]` for `total > 5` and never reflected the current page, so navigating past page 3 left the "active" highlight on page 3.
 - `ui-registry.md` updated: JobsList, JobsPagination, FindJobsPage, new JobsQuery entry, Utils notes. `npm run build` clean, `npm run lint` (eslint on the four files) clean.
+
+### 11 follow-up — audit: comma in text search silently broke the list (fixed 2026-09-03)
+- Audited Feature 11 against `build-plan.md:206-219`. All eight spec points were implemented (all/high/low filters at threshold 70, sort matchScore-desc / newest / oldest, case-insensitive search on company + title, 20/page with exact count, URL-driven state). One real bug found: **text search with a comma in the term 400'd on the InsForge gateway** — unquoted `or=(company.ilike.%a,b%,title.ilike.%a,b%)` splits on the comma, leaving an invalid filter fragment. The `try/catch` in `page.tsx` swallowed the 400, so the list silently went empty instead of showing matches.
+- Root cause verified live against `/api/database/records/` (throwaway test table, dropped afterwards): unquoted `or=()` values cannot contain commas (400); **double-quoted values can** — the gateway strips the quotes, and `\"` inside yields a literal quote. Backslash-escaping of `%`/`_` does NOT work on this gateway (the backslash is silently dropped, `%` stays a wildcard), so the old `escapeIlike` backslash-escaping was inert and has been removed.
+- Fix: `escapeIlike()` in `lib/jobs-query.ts` now trims and escapes only `"` → `\"`; `app/find-jobs/page.tsx` wraps the ilike values: `.or('company.ilike."%…%",title.ilike."%…%"')`. Live-verified correct rows for: comma term, space term, title-only match, literal-quote term.
+- Consequence: a literal `%`/`_` typed in the search box now acts as a LIKE wildcard (slightly broader matches) rather than a literal — acceptable for this feature; job titles and company names essentially never contain them.
+- `npm run build` clean; eslint on both touched files clean.
+
+### 12 Job Details Page
+- Built `app/find-jobs/[id]/page.tsx` (Server Component) + `app/find-jobs/[id]/error.tsx` (PostHog-reporting error boundary, mirrors `app/profile/error.tsx`).
+- New `components/job-details/*`: `BackLink`, `JobHeaderCard` (Building2 + title + `View Job Post` external link + 85% Match Score pill), `InfoCardsRow` (4-card grid: salary / location / job type / date found — each with a colored 40×40 icon block), `MatchReasonCard`, `SkillsCard` (matched = `bg-success-lightest` / `Check`; gap = `bg-accent-muted` / `X` per `ui-tokens.md:172-173`), `JobDescriptionCard` (prose `about_role`, `whitespace-pre-line`), `CompanyResearchCard` (empty state by default + a 9-field dossier renderer that activates once Feature 13 writes `jobs.company_research`), `ApplyButton` (full-width `bg-accent`, opens `external_apply_url` in a new tab).
+- New `lib/job-details.ts` — `JobDetails` type + `mapJobRow()` that handles every nullable column in the `jobs` table (the agent writes `about_role` as a snippet and may leave `location` / `salary` / `job_type` empty — each is normalized to a safe default). `lib/jobs-format.ts` — `formatJobType()` (raw `fulltime` → "Full-time", empty → "—") and `formatRelative()` (extracted from the old inline copy in `app/find-jobs/page.tsx:20-31` so both pages share the same logic).
+- Wired `JobsList` rows to be clickable — `<li>` now carries the row's `border-b`/hover, and the cell grid is wrapped in `<Link href="/find-jobs/{id}">` with `focus-visible:bg-surface-secondary`. Next.js prefetches these in the viewport, so navigation feels instant.
+- **Job Description shape** — design shows a single prose block, not the 5-section `About / Responsibilities / Requirements / Nice to have / Benefits` layout from `build-plan.md:227`. Followed the design (single `about_role` text). The 5 sections are a data-extraction task (Adzuna only fills `about_role`) and belong with the Adzuna-replacement feature, not the UI build.
+- **Company Research card** — built the dossier renderer now per the build-plan spec (renders all 9 fields) but the card defaults to the empty state. `Research Company` button is `disabled` with a tooltip-equivalent `aria-label`; Feature 13 wires the agent and removes the disabled state. The card reads `jobs.company_research` jsonb on every render — when the field is null, empty state; when set, the renderer.
+- **Dossier sub-blocks** match the spec at `build-plan.md:354-366` — Company Overview, Tech Stack, Culture, Why This Role, **Your Edge** (highlighted with `border-accent-light bg-accent-muted/50`), Gaps to Address, Smart Questions, Interview Prep, Sources. All optional; if any array is empty, that sub-block is hidden.
+- **proxy.ts** — no change needed. `pathname.startsWith("/find-jobs/")` already covers `/find-jobs/[id]`. Verified at `proxy.ts:16`.
+- **Page column width** — `mx-auto w-full max-w-[1080px]` matches the profile form column (the design's card widths fall between the profile column and the 1440px page container; 1080px keeps the cards readable on small viewports without stretching past the design's intent).
+- `npm run build` clean; new route `/find-jobs/[id]` registered as `ƒ (Dynamic)`. eslint clean across all new files + the modified `JobsList.tsx`.
+
+### 12 follow-up — show more / show less on long descriptions
+- `JobDescriptionCard` is now a client component with a `useState` collapse toggle. When `about_role` is longer than 600 chars, the body renders with `line-clamp-6` and a `text-accent` "Show more" button; clicking reveals the full text + a "Show less" toggle. Short descriptions render in full with no toggle. `npm run build` clean, eslint clean.
+
+### 12 follow-up 2 — full job description via Adzuna redirect (long descriptions)
+- Adzuna's `description` is a snippet (~150-300 chars). The full text lives at `redirect_url`, which redirects to the actual ATS page (Lever, Greenhouse, Ashby, etc.). Fixed by enriching at discovery time.
+- `lib/adzuna-redirect.ts` — `fetchJobPage(redirectUrl)`: server-side `fetch(redirectUrl, { redirect: "follow" })` with 8s timeout, 60KB body cap, custom User-Agent, and an HTML content-type guard. Returns `{ finalUrl, html }` or `null`. Also exports `stripHtmlToText(html)` for fallback.
+- `agent/matcher.ts:buildPrompt()` now accepts an optional `htmlBody`. When present, the system prompt asks the LLM to **also** extract the long description from the HTML in the same call (`long_description` field, JSON schema extended). `max_tokens` bumped 300 → 1200 to fit the longer output. The HTML is truncated to 12KB before injection to stay under small-context free models. When `htmlBody` is absent (fetch failed), `long_description` falls back to a cleaned-up version of the Adzuna snippet.
+- Defensive parsing in the matcher: if the LLM returns an empty/very-short `long_description` after a successful HTML fetch, fall back to `stripHtmlToText(html)`. If all else fails, fall back to `job.description`. Final pass collapses any `...` runs to a single `…`.
+- `app/api/agent/find/route.ts` — for each Adzuna result, `fetchJobPage(job.redirect_url)` runs in parallel with the scoring batch (concurrency 5, same as before). The fetched HTML is passed into `scoreJobAgainstProfile()`, which now also returns `longDescription` in the same LLM call — no extra LLM cost. The `about_role` column gets `score.longDescription` when it's > 200 chars; otherwise the Adzuna snippet is kept (defensive against LLM output that's shorter than the original snippet).
+- `ScoredJob` type extended with `longDescription: string`. The neutral-score fallback returns the cleaned Adzuna description.
+- **Backfill not in scope** — existing jobs in the DB still have the Adzuna snippet. A one-time backfill (re-run `fetchJobPage` + `extractLongDescription` for every row) is a separate task; the show-more toggle remains a no-op for those jobs until a new search runs.
+- **Cost / latency** — same LLM call count per job (1) but a larger prompt (HTML body added). The fetch is `redirect: "follow"` so the Adzuna redirect resolves in one HTTP request; the response is the ATS page. No browser / no Stagehand.
+- `npm run build` clean, eslint clean on `lib/adzuna-redirect.ts`, `agent/matcher.ts`, `agent/types.ts`, `app/api/agent/find/route.ts`, `components/job-details/JobDescriptionCard.tsx`.
+
+### 12 follow-up 3 — on-demand full description fetch for existing jobs
+- The discovery-time enrichment only helps new jobs. Existing rows still have the Adzuna snippet — "Show more" had no effect because the data was the truncated source. Fixed with an on-demand fetch.
+- `app/api/jobs/[id]/description/route.ts` — `POST` (Next.js 16, `runtime nodejs`, `maxDuration 30`). Auth-required, scoped to the current user. Reads the job's `source_url` + `about_role`, calls `fetchJobPage(source_url)` (the existing 8s-timeout HTML fetcher), strips HTML with `stripHtmlToText`, validates the result is at least 80 chars and longer than the current `about_role`, then `update`s `about_role` with the long text. Returns `{ description, replaced: true }` on success, `{ description: current, replaced: false }` when the page text isn't actually longer (avoids no-op writes).
+- Error mapping: 401 unauth, 404 not found, 422 source URL missing or text not extractable, 502 fetch unreachable, 500 DB write failed.
+- `JobDescriptionCard` now takes `jobId: string` and holds `text` / `loading` / `error` in local state. Branch on `text.length`: > 600 → existing clamp toggle ("Show more" / "Show less"); ≤ 600 → "Load full description" button (secondary button style, spinner while `loading`, `text-error` alert on failure). After the route returns, `text` is replaced and the card re-renders in the long branch — the next visit sees the persisted `about_role` from the DB.
+- `proxy.ts` already excludes `api/auth` from the matcher but **includes** all other paths. `/api/jobs/*` is unauthenticated at the proxy level — the route handler enforces `getCurrentUser()` itself (same pattern as `/api/agent/find`).
+- `npm run build` clean; new route `/api/jobs/[id]/description` registered as `ƒ (Dynamic)`. eslint clean.
+
+### 12 follow-up 4 — measure-driven overflow detection for the description toggle
+- The toggle was previously shown whenever `text.length > 600`, but a long string that wraps to < 6 lines wouldn't actually be clipped by `line-clamp-6` — the user would click "Show more" and see no change. "Click show more do nothing."
+- Fix: `JobDescriptionCard` now uses a `useLayoutEffect` + `bodyRef` to measure `el.scrollHeight` against `lineHeight * 6` and only renders the "Show more / Show less" toggle when the rendered text actually overflows. On first render, the text is un-clamped, the effect measures, and the state flips to `clampActive = true` only when overflow is real. After the user clicks "Show more", `expanded = true`, the clamp is removed, and the effect resets `overflows = false`. The "Load full description" button (for the snippet case) only shows when `overflows === false` AND `text.length <= 600`, so it doesn't appear next to a real clamp toggle.
+- `npm run build` clean, eslint clean (one `react-hooks/set-state-in-effect` disable for the early-return branch — the rule is designed to discourage effect-driven state churn, but this is a legitimate measure-driven sync that can't be expressed as a derivation).
+
+### 12 follow-up 5 — full job description is unreachable server-side (reverted enrichment, surfaced as external link)
+- **Root cause:** Adzuna's `redirect_url` is `https://www.adzuna.com/land/ad/{id}?utm_*` which then 302-redirects to the actual ATS page. The Adzuna edge (CloudFront) blocks all server-side requests with `403 Forbidden — Request blocked. Generated by cloudfront (CloudFront)`, regardless of User-Agent — the WAF rejects at the edge before UA inspection. `fetchJobPage(redirectUrl)` always returns `null` from a Node.js runtime. The on-demand route handler (`POST /api/jobs/[id]/description`) was therefore always returning 502 "Could not reach the original job posting". The discovery-time enrichment (passing the HTML to the matcher) had the same problem — `fetchJobPage` failed for every job, so the matcher always ran the snippet branch. The free Adzuna API tier also has no per-job endpoint (`GET /v1/api/jobs/us/jobs/{id}` returns `{"exception":"UNKNOWN_METHOD"}`).
+- **Conclusion:** the full description is unreachable from our server. The only way to read it is in a real browser via the original posting.
+- **Reverted** the broken code:
+  - Deleted `lib/adzuna-redirect.ts` and `app/api/jobs/[id]/description/route.ts`.
+  - `agent/matcher.ts` and `agent/types.ts` reverted to the original (no `htmlBody` param, no `longDescription` field, `max_tokens: 300`).
+  - `app/api/agent/find/route.ts` reverted to plain `scoreJobAgainstProfile(job, profile)` (no per-job `fetchJobPage`). New jobs now also get the Adzuna snippet in `about_role` — same as before the enrichment attempt.
+- **Replaced the on-demand "Load full description" button with a "Read full description" link** in `JobDescriptionCard`. The link is a `text-accent` `<a target="_blank" rel="noopener noreferrer">` that opens `externalApplyUrl` in a new tab — that's the same URL the `View Job Post` button at the top of the page already opens, but it's now discoverable right under the truncated snippet. The `useLayoutEffect` overflow measurement is kept (the clamp toggle now only appears when the rendered text actually exceeds 6 lines).
+- `JobDescriptionCard` props simplified: now `{ description: string, externalApplyUrl: string }` — no more `jobId`, no fetch state, no error state.
+- `npm run build` clean, eslint clean. Route count back to 12 (the dead `api/jobs/[id]/description` route is gone).
+
+### 12 follow-up 6 — inline iframe for the full description
+- The user wants the full description visible in the app, not in a new tab. Since the full description is unreachable from our server (CloudFront blocks `fetch` of Adzuna's redirect URL — see `12 follow-up 5`) and Adzuna's API has no per-job endpoint, the only practical way is to render the actual ATS page inside the app.
+- `JobDescriptionCard` now renders an inline `<iframe src={externalApplyUrl}>` when the user clicks "Show full description". The browser follows Adzuna's `redirect_url` 302-redirect naturally and renders the destination ATS page (Greenhouse, Lever, Ashby, etc.) right inside the card. The toggle rotates a `ChevronDown` icon and switches label to "Hide full description".
+- Iframe is `min-h-[600px]`, `sandbox="allow-same-origin allow-scripts allow-forms"` (no `allow-top-navigation` — clickjacking guard), `referrerPolicy="no-referrer"`. Wrapped in `rounded-lg border border-border overflow-hidden bg-surface-secondary` so it sits cleanly inside the card.
+- **Embedding-block detection**: on `onLoad` the component reads `contentDocument.body.innerText`; if it's empty or throws (cross-origin errors are caught), it flips a state and renders a fallback panel: muted copy "This site doesn't allow embedding." with a `text-accent` link to open the URL in a new tab. Handles the `X-Frame-Options: DENY` / `Content-Security-Policy: frame-ancestors` case automatically.
+- `npm run build` clean, eslint clean. No new dependencies.
+
+### 12 follow-up 7 — drop the iframe, use a link (per user feedback)
+- The user saw the inline iframe in the previous iteration and said it didn't look good. Reverted to a clean link approach.
+- `JobDescriptionCard` now shows the Adzuna snippet (clamped via `useLayoutEffect` if it actually overflows 6 lines) and a single `View full description on the main site` `text-accent` link below. No toggle, no iframe, no client fetch state.
+- The link opens `externalApplyUrl` in a new tab (same destination as the top-of-page "View Job Post" button — surfaced here for discoverability right under the truncated snippet).
+- `npm run build` clean, eslint clean. No new dependencies.
 
 ## Notes
 

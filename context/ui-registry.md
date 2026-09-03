@@ -25,9 +25,9 @@ After building any component — update this file with the component name, file 
 - inner `nav` → `mx-auto max-w-[1440px] h-16 px-6 flex items-center justify-between`
 - logo mark → 36×36, `rounded-[10px]`, gradient `linear-gradient(45deg, #7C5CFC 0%, #4A2EC5 100%)`
 - logo text → `text-[19px] font-bold leading-7 text-text-darkest`
-- nav links → `text-[14px] font-medium leading-5 text-text-dark hover:text-accent`
+- nav links → `text-[14px] font-medium leading-5 transition-colors text-text-dark hover:text-accent`
 - active link → `text-accent border-b-2 border-accent pb-1` (Feature 09 deviation from `ui-rules.md` — design shows underline; active color still #7C5CFC)
-- primary CTA → `bg-accent text-accent-foreground px-4 py-2 rounded-md text-[14px] font-medium`
+- primary CTA → `inline-flex items-center justify-center rounded-md px-4 py-2 bg-accent text-accent-foreground text-[14px] font-medium hover:bg-accent-dark transition-colors`
 - Accepts `isAuthed: boolean` prop. When true, CTA label changes to "Open dashboard" and href becomes `/dashboard`.
 - Accepts `activePath?: string` prop (Feature 09). When provided and matching `/dashboard`, `/find-jobs`, or `/profile`, that link gets the active style. Pass it from each page that uses the Navbar; falls back to all-inactive when omitted.
 
@@ -100,7 +100,7 @@ Last updated: 2026-08-29
 
 #### `ResumeCard` — `components/profile/ResumeCard.tsx`
 File: `components/profile/ResumeCard.tsx`
-Last updated: 2026-08-29
+Last updated: 2026-09-03
 
 | Property | Class |
 | --- | --- |
@@ -109,13 +109,13 @@ Last updated: 2026-08-29
 | Border radius | `rounded-2xl` (card), `rounded-lg` (dropzone/file row), `rounded-full` (icon circle), `rounded-md` (buttons) |
 | Text — primary | `text-text-primary` (`text-[16px] font-semibold leading-6` title, `text-[14px] font-medium leading-5` upload line/file name) |
 | Text — secondary | `text-text-secondary` (subtext `text-[14px] leading-5`, Generate helper `text-[14px] leading-5`) |
-| Text — muted | `text-text-muted` (dropzone sub-line `text-[12px] leading-4`, file size `text-[12px] leading-4`), `text-error` (error `text-[13px] leading-5`) |
-| Spacing | `p-6` (card), `px-6 py-10` (dropzone), `px-4 py-3` (file row), `pt-6 mt-6` (Generate row), `gap-4` (Generate flex), `mt-2`/`mt-3` (upload texts) |
-| Hover state | `hover:bg-surface-secondary` (Select), `hover:bg-accent-dark` (Generate), `hover:text-text-primary hover:bg-surface` (clear X) |
+| Text — muted | `text-text-muted` (dropzone sub-line `text-[12px] leading-4`, file size `text-[12px] leading-4`, View PDF link `text-accent hover:underline`), `text-error` (error `text-[13px] leading-5`) |
+| Spacing | `p-6` (card), `px-6 py-10` (dropzone), `px-4 py-3` (file row), `pt-6 mt-6` (Generate row), `gap-4` (Generate flex), `gap-1` (download+delete icon-button row), `mt-2`/`mt-3` (upload texts) |
+| Hover state | `hover:bg-surface-secondary` (Select), `hover:bg-accent-dark` (Generate), `hover:text-text-primary hover:bg-surface` (clear X), `hover:text-accent hover:bg-accent-light` (download), `hover:text-error hover:bg-error-light` (delete) |
 | Shadow | none |
-| Accent usage | `bg-accent-light text-accent` (icon circle), `border-accent bg-accent-muted` (drag active), `bg-accent text-accent-foreground` (Generate) |
+| Accent usage | `bg-accent-light text-accent` (icon circle), `border-accent bg-accent-muted` (drag active), `bg-accent text-accent-foreground` (Generate), `text-accent` (View PDF link) |
 
-**Pattern notes:** Dropzone via `react-dropzone@20.1.1` (`accept pdf`, `maxSize 5MB`, `multiple false`, `noClick/noKeyboard` — Select button is click target). Conditional `border-accent`/`bg-accent-muted` when `isDragActive`. File row collapses dropzone. Generate button (`bg-accent text-accent-foreground`) now wired to `POST /api/resume/generate` with `isGenerating` spinner and reload on success (Feature 08 completed).
+**Pattern notes:** Dropzone via `react-dropzone@20.1.1` (`accept pdf`, `maxSize 5MB`, `multiple false`, `noClick/noKeyboard` — Select button is click target). Conditional `border-accent`/`bg-accent-muted` when `isDragActive`. File row collapses dropzone; right side is `gap-1` icon-button row with Download (`Download` icon, blob-download via `fetch(existingUrl, {credentials:"include"})` → object URL → `a[download="resume.pdf"]`, falls back to `window.open` on failure) then Trash2 delete (gated by `window.confirm` in parent, `isDeleting` shows spinner + "Removing..."). Generate button (`bg-accent text-accent-foreground`) now wired to `POST /api/resume/generate` with `isGenerating` spinner and `router.refresh()` on success (Feature 08 completed; no hard reload). Error line `text-[13px] leading-5 text-error` `role="alert"` at bottom of card.
 
 #### `TagInput` — `components/profile/TagInput.tsx`
 File: `components/profile/TagInput.tsx`
@@ -290,21 +290,21 @@ Last updated: 2026-09-01
 
 #### `JobsList` — `components/find-jobs/JobsList.tsx`
 File: `components/find-jobs/JobsList.tsx`
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 | Property | Class |
 | --- | --- |
 | Background | `bg-surface` (filter card, table, inputs, dropdowns, pagination buttons) |
-| Border | `border border-border` (filter card, table, inputs, dropdowns) |
+| Border | `border border-border` (filter card, table, inputs, dropdowns), `border-b border-border last:border-b-0` (row separators) |
 | Border radius | `rounded-2xl` (filter card, table) |
 | Text — primary | `text-text-primary` (input, company, role, salary, page numbers active) |
 | Text — secondary | `text-text-secondary` (column headers `text-[12px] font-medium leading-4 tracking-wide uppercase`, date found, "Showing X to Y of Z results") |
 | Text — muted | `text-text-muted` (placeholder, dropdown chevron, ellipsis) |
 | Spacing | `p-4` (filter card), `px-6 py-3` (column header), `px-6 py-4` (rows), `px-6 py-4` (pagination row), `gap-3` (filter flex), `gap-2` (dropdowns) |
-| Hover state | `hover:bg-surface-secondary` (rows, inactive page buttons), `hover:bg-accent-dark` (Find Jobs) |
+| Hover state | `hover:bg-surface-secondary` (rows, inactive page buttons, Previous/Next), `focus-visible:bg-surface-secondary` (row link) |
 | Accent usage | `focus:ring-accent` / `focus:border-accent` (inputs), `bg-accent-light text-accent` (active page), `border-b-2 border-accent` (active nav) |
 
-**Pattern notes:** Client Component. **State lives in the URL** (`?page=&filter=&sort=&q=`); `JobsList` pushes changes via `router.push` inside `startTransition` and the Server Component (`app/find-jobs/page.tsx`) re-runs the query. Server passes the already-filtered `jobs` slice, `page`, `pageSize`, `pageCount`, `start`, `end`, `filter`, `sort`, `query` as props. Local state: only the text input (so typing doesn't fire a server roundtrip per keystroke); pressing Enter or clicking the input's submit pushes to the URL. The list dims (`opacity-60`) during `useTransition` pending. Table uses CSS grid `grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)]` so column widths match the design. Row hover `bg-surface-secondary`, separator `border-b border-border`. Empty state: when `total === 0` shows "No jobs found yet. Run a search above to find matches." (`text-text-muted`, `py-12`); when `total > 0` but the page slice is empty, shows "No jobs match your filters." — same muted style. Pagination row hidden when `total === 0`. Filter/sort options are imported from `lib/jobs-query.ts` (single source of truth shared with the Server Component).
+**Pattern notes:** Client Component. **State lives in the URL** (`?page=&filter=&sort=&q=`); `JobsList` pushes changes via `router.push` inside `startTransition` and the Server Component (`app/find-jobs/page.tsx`) re-runs the query. Server passes the already-filtered `jobs` slice, `page`, `pageSize`, `pageCount`, `start`, `end`, `filter`, `sort`, `query` as props. Local state: only the text input (so typing doesn't fire a server roundtrip per keystroke); pressing Enter or clicking the input's submit pushes to the URL. The list dims (`opacity-60`) during `useTransition` pending. Table uses CSS grid `grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)]` so column widths match the design. **Each row is now a `<Link href="/find-jobs/{id}">`** (Feature 12) — the `<li>` carries the row's hover bg and `border-b`, the `<Link>` carries the grid + cell padding + `focus-visible:bg-surface-secondary`. Row hover `bg-surface-secondary`, separator `border-b border-border`. Empty state: when `total === 0` shows "No jobs found yet. Run a search above to find matches." (`text-text-muted`, `py-12`); when `total > 0` but the page slice is empty, shows "No jobs match your filters." — same muted style. Pagination row hidden when `total === 0`. Filter/sort options are imported from `lib/jobs-query.ts` (single source of truth shared with the Server Component).
 
 #### `MatchScoreBar` — `components/find-jobs/MatchScoreBar.tsx`
 File: `components/find-jobs/MatchScoreBar.tsx`
@@ -354,7 +354,7 @@ Last updated: 2026-09-02
 
 #### `FindJobsPage` — `app/find-jobs/page.tsx`
 File: `app/find-jobs/page.tsx`
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 | Property | Class |
 | --- | --- |
@@ -362,7 +362,7 @@ Last updated: 2026-09-02
 | Spacing | `py-12` (container), `px-8` (container), `gap-6` (form stack) |
 | Shadow | none |
 
-**Pattern notes:** Server Component. Reads `isAuthed` from the `insforge_access_token` cookie. Accepts `searchParams: Promise<{ page?, filter?, sort?, q? }>` and parses each via helpers in `lib/jobs-query.ts` (`parsePage`, `parseFilter`, `parseSort`) so unknown values fall back to defaults (`page=1`, `filter=all`, `sort=matchScore`, `q=""`). Builds an InsForge query chain on `insforge.database.from("jobs").select("*", { count: "exact" }).eq("user_id", user.id)`, then conditionally appends `.gte("match_score", 70)` / `.lt("match_score", 70)` for the match filter, `.or("company.ilike.%…%,title.ilike.%…%")` for text search (with `escapeIlike` to neutralise `%`, `_`, `\`), then `.order("match_score", { ascending: false }).order("found_at", { ascending: false })` / `.order("found_at", { ascending: false | true })` per the sort key, and finally `.range(from, to)` with `pageSize = 20` (DEFAULT_PAGE_SIZE). `start` / `end` / `pageCount` are derived from the server's `count`; `notFound()` triggers if `page > pageCount` and there are results. DB fetch is wrapped in try/catch — any error leaves the list empty. Mounts `Navbar` with `activePath="/find-jobs"`, `<PageviewTracker path="/find-jobs" />`, then `SearchControls` (wired in Feature 10) + `JobsList` (URL-driven, Feature 11).
+**Pattern notes:** Server Component. Reads `isAuthed` from the `insforge_access_token` cookie. Accepts `searchParams: Promise<{ page?, filter?, sort?, q? }>` and parses each via helpers in `lib/jobs-query.ts` (`parsePage`, `parseFilter`, `parseSort`) so unknown values fall back to defaults (`page=1`, `filter=all`, `sort=matchScore`, `q=""`). Builds an InsForge query chain on `insforge.database.from("jobs").select("*", { count: "exact" }).eq("user_id", user.id)`, then conditionally appends `.gte("match_score", 70)` / `.lt("match_score", 70)` for the match filter, `.or('company.ilike."%…%",title.ilike."%…%"')` for text search (values double-quoted so commas survive the gateway's or=() parsing; `escapeIlike` only escapes a double quote in the term), then `.order("match_score", { ascending: false }).order("found_at", { ascending: false })` / `.order("found_at", { ascending: false | true })` per the sort key, and finally `.range(from, to)` with `pageSize = 20` (DEFAULT_PAGE_SIZE). `start` / `end` / `pageCount` are derived from the server's `count`; `notFound()` triggers if `page > pageCount` and there are results. DB fetch is wrapped in try/catch — any error leaves the list empty. Mounts `Navbar` with `activePath="/find-jobs"`, `<PageviewTracker path="/find-jobs" />`, then `SearchControls` (wired in Feature 10) + `JobsList` (URL-driven, Feature 11).
 
 #### `Job Types` — `components/find-jobs/types.ts`
 File: `components/find-jobs/types.ts`
@@ -376,14 +376,14 @@ Last updated: 2026-09-01
 
 #### `JobsQuery` — `lib/jobs-query.ts`
 File: `lib/jobs-query.ts`
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 | Property | Notes |
 | --- | --- |
 | Exports | `DEFAULT_PAGE_SIZE = 20`, `MATCH_THRESHOLD = 70`, `MATCH_FILTERS`, `SORT_OPTIONS`, `MatchFilter`, `SortKey`, `JobRow`, `ListJobsResult`, `parsePage`, `parseFilter`, `parseSort`, `escapeIlike` |
 | Used by | `app/find-jobs/page.tsx` (Server Component), `components/find-jobs/JobsList.tsx` (Client Component) |
 
-**Pattern notes:** Single source of truth for filter / sort options, threshold, page size, and the small parsers that turn raw `searchParams` into typed values with safe defaults. `MATCH_THRESHOLD` was previously only in `lib/utils.ts`; moved here so the server query and the client share the same numeric value. `escapeIlike` neutralises `%`, `_`, and `\` in the user-typed search term before it is interpolated into the PostgREST `.or("…ilike.…")` filter, otherwise `%` in the search would be interpreted as a wildcard. The actual query chain lives inline in `app/find-jobs/page.tsx` so TypeScript can infer the postgrest-js fluent types end-to-end.
+**Pattern notes:** Single source of truth for filter / sort options, threshold, page size, and the small parsers that turn raw `searchParams` into typed values with safe defaults. `MATCH_THRESHOLD` was previously only in `lib/utils.ts`; moved here so the server query and the client share the same numeric value. `escapeIlike` trims the search term and escapes only `"` → `\"` (a literal quote in the term can't break out of the quoted value) — the or=() value is double-quoted in `page.tsx` because the InsForge gateway 400s on unquoted commas in or=() values (see `progress-tracker.md` "11 follow-up"); backslash-escaping `%`/`_` is inert on this gateway and was removed. The actual query chain lives inline in `app/find-jobs/page.tsx` so TypeScript can infer the postgrest-js fluent types end-to-end.
 
 #### `Adzuna Client` — `lib/adzuna.ts`
 File: `lib/adzuna.ts`
@@ -539,6 +539,162 @@ Last updated: 2026-08-29
 **File:** `app/profile/error.tsx`
 
 Route-level error boundary for `/profile`. Renders a centered card (`AlertCircle` + heading + body + "Try again" button) when the route render fails, and reports the exception through `posthog.captureException` (same env guard as `app/global-error.tsx`). Keeps a server error scoped to the route instead of the whole app.
+
+---
+
+### Job Details
+
+#### `BackLink` — `components/job-details/BackLink.tsx`
+File: `components/job-details/BackLink.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | none |
+| Border | none |
+| Text — secondary | `text-text-secondary` (`text-[14px] font-medium leading-5`) |
+| Spacing | `gap-1` (icon + label) |
+| Hover state | `hover:text-text-primary` |
+| Accent usage | none |
+
+**Pattern notes:** Inline link with `ArrowLeft` icon. Default label "Back to Jobs", default href `/find-jobs`. Used once at the top of `/find-jobs/[id]`.
+
+#### `JobHeaderCard` — `components/job-details/JobHeaderCard.tsx`
+File: `components/job-details/JobHeaderCard.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card), `bg-surface-secondary` (icon block) |
+| Border | `border border-border` (card, icon block) |
+| Border radius | `rounded-2xl` (card), `rounded-lg` (icon block) |
+| Text — primary | `text-text-primary` (title `text-[24px] md:text-[28px] font-bold leading-tight tracking-tight`, company `text-[14px] leading-5 font-medium`) |
+| Text — secondary | `text-text-secondary` (row containing company + score) |
+| Spacing | `p-6` (card), `gap-6` (flex row), `gap-4` (icon + meta), `gap-2` (company + score), `mt-2` (meta below title) |
+| Hover state | `hover:bg-surface-secondary` (View Job Post button) |
+| Accent usage | none (score badge is `bg-success-lightest` / `text-success-foreground` — uses success tokens) |
+
+**Pattern notes:** Server component. `w-12 h-12` icon block with `Building2` (`text-text-secondary`). Score pill is `rounded-full bg-success-lightest px-2 py-0.5 text-[12px] font-medium leading-4 text-success-foreground`. View Job Post is a secondary button — external `<a target="_blank" rel="noopener noreferrer">`; rendered `aria-disabled` when `externalApplyUrl` is empty.
+
+#### `InfoCardsRow` — `components/job-details/InfoCardsRow.tsx`
+File: `components/job-details/InfoCardsRow.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (cards), `bg-success-light` (Salary icon), `bg-info-light` (Location icon), `bg-accent-light` (Job Type icon), `bg-surface-tertiary` (Date Found icon) |
+| Border | `border border-border` (cards) |
+| Border radius | `rounded-2xl` (cards), `rounded-lg` (icon blocks) |
+| Text — primary | `text-text-primary` (value `text-[16px] font-semibold leading-6 truncate`) |
+| Text — muted | `text-text-muted` (label `text-[12px] font-medium leading-4 tracking-wide uppercase`) |
+| Spacing | `p-6` (cards), `gap-4` (icon + text), `gap-6` (grid), `mt-1` (label below value) |
+| Accent usage | Icon-block colors are semantic — Salary = success, Location = info, Job Type = accent, Date Found = neutral (matches score-bar convention) |
+
+**Pattern notes:** 4-card grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6`. Each card is `flex items-center gap-4` with a 40×40 `rounded-lg` icon block on the left and a `min-w-0` text block on the right. Value is the primary heading; label is uppercase muted below. Missing values render as `—` (em dash).
+
+#### `MatchReasonCard` — `components/job-details/MatchReasonCard.tsx`
+File: `components/job-details/MatchReasonCard.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-2xl` |
+| Text — primary | `text-text-primary` (body `text-[14px] leading-6`) |
+| Text — secondary | `text-text-secondary` (label `text-[12px] font-medium leading-4 tracking-wide uppercase`) |
+| Spacing | `p-6`, `gap-2` (icon + label), `mt-3` (body) |
+| Accent usage | `text-accent` (Sparkles icon) |
+
+**Pattern notes:** Server component. Single section with `Sparkles` icon + uppercase "AI Match Reasoning" label, then the GPT-4o reasoning paragraph. Empty-state fallback `"No reasoning available yet."` when `matchReason` is empty.
+
+#### `SkillsCard` — `components/job-details/SkillsCard.tsx`
+File: `components/job-details/SkillsCard.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card), `bg-success-lightest` (matched pill), `bg-accent-muted` (gap pill) |
+| Border | `border border-border` (card) |
+| Border radius | `rounded-2xl` (card), `rounded-full` (pills) |
+| Text — primary | `text-text-primary` (subhead `text-[14px] font-medium leading-5`) |
+| Text — secondary | `text-text-secondary` (section label `text-[12px] font-medium leading-4 tracking-wide uppercase`) |
+| Accent usage | `text-success-foreground` (matched pill), `text-accent` (gap pill) |
+
+**Pattern notes:** Server component. Two stacked groups — "You have" (matched, `bg-success-lightest`/`text-success-foreground` with `Check`) and "Gap skills" (missing, `bg-accent-muted`/`text-accent` with `X`). `flex flex-wrap gap-2` for pills. Each group only renders if its array is non-empty; if both are empty, renders the muted fallback "No skill breakdown available yet."
+
+#### `JobDescriptionCard` — `components/job-details/JobDescriptionCard.tsx`
+File: `components/job-details/JobDescriptionCard.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card, iframe), `bg-surface-secondary` (iframe wrapper) |
+| Border | `border border-border` (card, iframe wrapper) |
+| Border radius | `rounded-2xl` (card), `rounded-lg` (iframe wrapper) |
+| Text — primary | `text-text-primary` (body `text-[14px] leading-6`, heading `text-[16px] font-semibold leading-6`) |
+| Text — secondary | `text-text-secondary` (icon, fallback hint) |
+| Text — muted | `text-text-muted` (empty state `text-[14px] leading-5`) |
+| Spacing | `p-6`, `gap-2` (icon + heading), `mt-3` (body, toggle), `mt-4` (iframe wrapper) |
+| Hover state | `hover:text-accent-dark` (toggle) |
+| Accent usage | `text-accent` (Show full description / Hide full description toggle, fallback link) |
+
+**Pattern notes:** Client component. Renders the Adzuna `about_role` snippet first (clamped via `useLayoutEffect` if it actually overflows 6 lines on the current card width — measurement against `bodyRef.current.scrollHeight` vs `lineHeight * 6`). Below the body is a `Show full description` / `Hide full description` toggle (with a rotating `ChevronDown` icon) that expands an inline `<iframe src={externalApplyUrl}>` inside a `rounded-lg border border-border overflow-hidden` wrapper. The iframe is `min-h-[600px]`, has `referrerPolicy="no-referrer"`, and is sandboxed (`allow-same-origin allow-scripts allow-forms` — no `allow-top-navigation` to prevent clickjacking). Iframe-load detection: on `onLoad` the component tries to read `contentDocument.body.innerText`; if it's empty or throws (cross-origin) the fallback panel renders instead. Fallback: muted copy "This site doesn't allow embedding." with an `Open full description in new tab` `text-accent` link to the same `externalApplyUrl`. **The iframe is the supported path for the full description — Adzuna's `redirect_url` 302-redirects to the actual ATS page; the browser follows the redirect naturally, but `X-Frame-Options`/`Content-Security-Policy: frame-ancestors` may block embedding on some sites (the fallback handles this).** Empty description renders a muted "No description available for this role." line.
+
+#### `CompanyResearchCard` — `components/job-details/CompanyResearchCard.tsx`
+File: `components/job-details/CompanyResearchCard.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card, button), `bg-surface-secondary` (icon block), `bg-accent-light` (Tech Stack pills, "Your Edge" highlight block) |
+| Border | `border border-border` (card, icon block), `border-t border-border` (separator above empty/dossier), `border border-accent-light` (Your Edge highlight) |
+| Border radius | `rounded-2xl` (card), `rounded-lg` (icon block, highlight block), `rounded-full` (pills) |
+| Text — primary | `text-text-primary` (heading `text-[16px] font-semibold leading-6`, dossier paragraphs `text-[14px] leading-6`, "No research yet" `text-[16px] font-semibold leading-6`) |
+| Text — secondary | `text-text-secondary` (subhead, button label, dossier sub-labels) |
+| Text — muted | `text-text-muted` (sources `text-[12px] leading-4 break-all`) |
+| Spacing | `p-6`, `gap-2` (heading row), `gap-4` (heading + button), `gap-6` (dossier blocks), `mt-3` (empty state heading), `mt-1` (helper), `py-8` (empty state) |
+| Hover state | `hover:bg-accent-dark` would apply when the button is enabled (Feature 13) |
+| Accent usage | `text-accent` (Briefcase icon, dossier sub-labels), `bg-accent text-accent-foreground` (Research Company button — disabled in this feature) |
+
+**Pattern notes:** Server component. Header row has the section heading on the left and the "Research Company" primary button on the right; `border-t border-border` separates the header from the content below. Content is either the empty state (default — `Building2` icon, "No research yet" heading, helper text) or the dossier renderer (9 fields: companyOverview, techStack, culture, whyThisRole, yourEdge, gapsToAddress, smartQuestions, interviewPrep, sources — see `build-plan.md:354-366` for the data shape). Each dossier sub-block is a `DossierBlock` helper with uppercase label + content. The "Your Edge" block has an `accent-light/accent-muted` highlight per the build plan. The Research Company button is intentionally `disabled` in Feature 12 — Feature 13 wires the agent and removes the disabled state.
+
+#### `ApplyButton` — `components/job-details/ApplyButton.tsx`
+File: `components/job-details/ApplyButton.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-accent` (button), `bg-surface` (empty fallback card) |
+| Border | `border border-border` (empty fallback card) |
+| Border radius | `rounded-2xl` (button, empty fallback card) |
+| Text — primary | `text-accent-foreground` (button `text-[14px] font-medium leading-5`) |
+| Text — muted | `text-text-muted` (empty fallback `text-[14px] leading-5`) |
+| Spacing | `px-6 py-4` (button), `p-6` (empty fallback), `gap-2` (icon + label) |
+| Hover state | `hover:bg-accent-dark` (button) |
+| Accent usage | `bg-accent text-accent-foreground` (button) |
+
+**Pattern notes:** Server component. Full-width primary button (`w-full`) with `ExternalLink` icon + label `"Apply Now at {company}"`. Opens `externalApplyUrl` in a new tab (`target="_blank" rel="noopener noreferrer"`). When `externalApplyUrl` is empty, renders a muted card "No apply link available for this role." instead.
+
+#### `JobDetailsPage` — `app/find-jobs/[id]/page.tsx`
+File: `app/find-jobs/[id]/page.tsx`
+Last updated: 2026-09-03
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background` (page) |
+| Border | `border-border` (via child cards) |
+| Border radius | `rounded-2xl` (child cards) |
+| Text — primary | `text-text-primary` (back link hover) |
+| Spacing | `py-12` (page container), `px-8` (page container), `gap-6` (form stack) |
+
+**Pattern notes:** Server Component. Reads `params: Promise<{ id: string }>` (Next 16 async params), fetches one row from `jobs` via `createInsforgeServer().database.from("jobs").select("*").eq("id", id).maybeSingle()`, then maps through `mapJobRow()` (handles nullable DB columns). On any error or missing row → `notFound()`. Layout mirrors `app/find-jobs/page.tsx`: `mx-auto max-w-[1440px] px-8 py-12` outer, `mx-auto w-full max-w-[1080px] flex flex-col gap-6` content column (matches the profile column width). Auth gate is handled by `proxy.ts` (`/find-jobs/*` already covered). Mounts `Navbar isAuthed activePath="/find-jobs"` + `Footer` + `<PageviewTracker path="/find-jobs/{id}" />`. Renders the sections in this order: `BackLink` → `JobHeaderCard` → `InfoCardsRow` → `MatchReasonCard` → `SkillsCard` → `JobDescriptionCard` → `CompanyResearchCard` → `ApplyButton`. `infoCardsRow` values use `formatJobType()` (`lib/jobs-format.ts` — `fulltime` → `Full-time`, empty → `—`) and `formatRelative()` (from the same module — same logic as `app/find-jobs/page.tsx:20-31` was extracted into the lib for reuse).
+
+#### `JobDetailsError` — `app/find-jobs/[id]/error.tsx`
+File: `app/find-jobs/[id]/error.tsx`
+Last updated: 2026-09-03
+
+**Pattern notes:** Mirrors `app/profile/error.tsx` exactly — centered card with `AlertCircle` + heading + body + "Try again" button. Reports exception to PostHog via the same env guard (`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` + `NEXT_PUBLIC_POSTHOG_HOST`). Use for the `/find-jobs/[id]` route.
 
 ---
 
