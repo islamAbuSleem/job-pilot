@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, ChevronDown } from "lucide-react";
 import type { Job } from "./types";
@@ -112,24 +113,29 @@ export function JobsList({
             {jobs.map((job) => (
               <li
                 key={job.id}
-                className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 items-center px-6 py-4 border-b border-border last:border-b-0 hover:bg-surface-secondary transition-colors"
+                className="border-b border-border last:border-b-0 hover:bg-surface-secondary transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <CompanyMark name={job.company} />
+                <Link
+                  href={`/find-jobs/${job.id}`}
+                  className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 items-center px-6 py-4 focus:outline-none focus-visible:bg-surface-secondary"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CompanyMark name={job.company} />
+                    <span className="text-[14px] font-medium leading-5 text-text-primary truncate">
+                      {job.company}
+                    </span>
+                  </div>
                   <span className="text-[14px] font-medium leading-5 text-text-primary truncate">
-                    {job.company}
+                    {job.role}
                   </span>
-                </div>
-                <span className="text-[14px] font-medium leading-5 text-text-primary truncate">
-                  {job.role}
-                </span>
-                <MatchScoreBar score={job.matchScore} />
-                <span className="text-[14px] leading-5 text-text-primary">
-                  {job.salary}
-                </span>
-                <span className="text-[14px] leading-5 text-text-secondary">
-                  {job.dateFound}
-                </span>
+                  <MatchScoreBar score={job.matchScore} />
+                  <span className="text-[14px] leading-5 text-text-primary">
+                    {job.salary}
+                  </span>
+                  <span className="text-[14px] leading-5 text-text-secondary">
+                    {job.dateFound}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
