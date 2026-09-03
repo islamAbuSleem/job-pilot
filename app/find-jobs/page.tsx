@@ -75,7 +75,7 @@ export default async function FindJobsPage({
 
       const searched = query
         ? filtered.or(
-            `company.ilike.%${escapeIlike(query)}%,title.ilike.%${escapeIlike(query)}%`,
+            `company.ilike."%${escapeIlike(query)}%",title.ilike."%${escapeIlike(query)}%"`,
           )
         : filtered;
 

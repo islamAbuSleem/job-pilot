@@ -49,5 +49,5 @@ export function parseSort(raw: string | string[] | undefined): SortKey {
 }
 
 export function escapeIlike(input: string): string {
-  return input.trim().replace(/[\\%_]/g, (m) => `\\${m}`);
+  return input.trim().replace(/"/g, '\\"');
 }
