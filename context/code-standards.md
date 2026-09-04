@@ -317,6 +317,7 @@ Approved dependencies for this project:
 - `pdfjs-dist` — Rasterize PDF pages for vision-model extraction (legacy ESM build, Node-only)
 - `@napi-rs/canvas` — Server-side canvas used by `pdfjs-dist` (prebuilt `.node` binaries; the `canvas` package is rejected because it needs a native compile with no prebuilt for current Node ABI on Windows)
 - `zod` — Schema validation
+- `recharts` — Dashboard charts (mandated by build-plan.md:442 for Feature 17)
 - `lucide-react` — Icons
 - `tailwindcss` — Styling
 - `shadcn/ui` components — UI primitives

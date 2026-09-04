@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 5 — Dashboard
-**Last completed:** 13 Company Research Agent
-**Next:** 14 Dashboard Page — Full UI
+**Last completed:** 14 Dashboard Page — Full UI
+**Next:** 15 Stats Bar — Real Data
 
 ---
 
@@ -47,7 +47,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### Phase 5 — Dashboard
 
-- [ ] 14 Dashboard Page — Full UI
+- [x] 14 Dashboard Page — Full UI
 - [ ] 15 Stats Bar — Real Data
 - [ ] 16 Recent Activity — Real Data
 - [ ] 17 Analytics Charts — PostHog Data
@@ -226,6 +226,17 @@ Update this file after every completed feature. Any AI agent reading this should
 - The route now selects `source_url` from the job row and passes it to the research agent.
 - **Build:** `npm run build` clean, eslint clean. Committed and pushed.
 - **NOT yet live-tested end-to-end** — no real Browserbase session has run yet (costs credits). First click on Research Company exercises the whole chain.
+
+### 14 Dashboard Page — Full UI
+- New `app/dashboard/page.tsx` (Server Component): `Navbar activePath="/dashboard"` + `Footer` + `PageviewTracker path="/dashboard"`; `mx-auto max-w-[1440px] px-8 py-12` container with `flex flex-col gap-6` stack. `/dashboard` already in `proxy.ts` PROTECTED_PATHS — no proxy change.
+- New `components/dashboard/StatsCard.tsx` (label 14px medium secondary, value 30px bold primary, trend pill `rounded-sm bg-success-lightest text-success-darker` + muted "vs last week", or muted subtext line). `StatsBar.tsx` wraps 4 cards in `grid sm:grid-cols-2 lg:grid-cols-4 gap-6`.
+- New `components/dashboard/RecentActivity.tsx` (server): title + stack of entries, each with 16px outer / 8px inner dot (`accent` → accent-light/accent, `info` → info-light/info, `success` → success-light/success-alt per ui-tokens Activity Dots), 14px medium text + 12px muted time; muted empty state when no entries.
+- New client chart components (recharts v3, `"use client"`): `ResearchActivityChart.tsx` (blue bars, y ticks 0/3/6/9/12), `JobsOverTimeChart.tsx` (accent monotone area, 3px stroke, gradient fill via `stopColor="var(--color-accent)"` opacity 0.25→0), `MatchScoreChart.tsx` (success bars, y ticks 0/25/50/75/100). Shared chart chrome: card wrapper with 16px semibold title, `h-[280px]` body, dashed `var(--color-border)` grid (`vertical={false}`), no tick/axis lines, 12px muted ticks. SVG colors reference CSS vars (`fill="var(--color-info)"` etc.) — never hex, per ui-tokens invariants. Each chart takes typed `data` props and renders a muted empty state when all values are 0.
+- New `components/dashboard/IncompleteProfileBanner.tsx` (server): error-icon card + "Complete your profile to unlock better matches" + secondary "Complete profile" link to `/profile`. Rendered conditionally — page does a best-effort `profiles` fetch + `computeCompletion()` in try/catch, banner only when `!isComplete`, silent on error.
+- Mock data matches `context/designs/dashboard.png` exactly (284/+12%, 82%/+3%, 35, 28; 5 activity entries; research 2/5/3/8/12/4/1; over-time 12/45/32/60/85/40/12; distribution 5/15/45/85/35). Components take typed data props so Features 15–17 plug real data in without structural changes.
+- Middle row `grid lg:grid-cols-2`, bottom row `grid lg:grid-cols-5` (over-time `col-span-3`, distribution `col-span-2`) — matches design proportions.
+- Installed `recharts@^3.10.1`; registered in code-standards approved deps (mandated by build-plan.md:442).
+- `npm run build` clean (`/dashboard` registered as `ƒ (Dynamic)`); eslint clean on all new files.
 
 ## Notes
 

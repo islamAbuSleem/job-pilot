@@ -714,6 +714,89 @@ Last updated: 2026-09-03
 
 **Pattern notes:** Mirrors `app/profile/error.tsx` exactly — centered card with `AlertCircle` + heading + body + "Try again" button. Reports exception to PostHog via the same env guard (`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` + `NEXT_PUBLIC_POSTHOG_HOST`). Use for the `/find-jobs/[id]` route.
 
+### Dashboard
+
+#### `StatsCard` — `components/dashboard/StatsCard.tsx`
+File: `components/dashboard/StatsCard.tsx`
+Last updated: 2026-09-04
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` |
+| Border | `border border-border` |
+| Border radius | `rounded-2xl` |
+| Text — primary | `text-text-primary` (value `text-[30px] font-bold leading-9`) |
+| Text — secondary | `text-text-secondary` (label `text-[14px] font-medium leading-5`) |
+| Text — muted | `text-text-muted` ("vs last week" / subtext `text-[12px] leading-4`) |
+| Spacing | `p-6`, `mt-1` (value), `mt-2` (trend/subtext row) |
+| Accent usage | none (trend pill is `rounded-sm bg-success-lightest text-success-darker`) |
+
+**Pattern notes:** Server component. Props: `label`, `value`, optional `trend` (renders green pill + muted "vs last week") or `subtext` (muted line, e.g. "Total researched"). Trend pill follows ui-tokens Trend Badges (`rounded-sm`, not pill).
+
+#### `StatsBar` — `components/dashboard/StatsBar.tsx`
+File: `components/dashboard/StatsBar.tsx`
+Last updated: 2026-09-04
+
+**Pattern notes:** Server component. Takes `stats: StatItem[]`, renders `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6` of `StatsCard`.
+
+#### `RecentActivity` — `components/dashboard/RecentActivity.tsx`
+File: `components/dashboard/RecentActivity.tsx`
+Last updated: 2026-09-04
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-surface` (card), dot outer `bg-accent-light` / `bg-info-light` / `bg-success-light` |
+| Border | `border border-border` (card), `border border-white` (dot ring) |
+| Border radius | `rounded-2xl` (card), `rounded-full` (dot + inner) |
+| Text — primary | `text-text-primary` (entry `text-[14px] font-medium leading-5`, title 16px semibold) |
+| Text — muted | `text-text-muted` (time `text-[12px] leading-4`) |
+| Spacing | `p-6`, list `mt-4 gap-5`, entry `gap-3`, time `mt-0.5` |
+| Accent usage | dot inner `bg-accent` / `bg-info` / `bg-success-alt` per `tone` prop |
+
+**Pattern notes:** Server component. Props: `entries: ActivityEntry[]` (`text`, `time`, `tone: "accent" \| "info" \| "success"`). Dot is 16px outer ring + 8px inner per ui-tokens Activity Dots. Muted empty state ("No activity yet…") when list is empty.
+
+#### `ResearchActivityChart` — `components/dashboard/ResearchActivityChart.tsx`
+File: `components/dashboard/ResearchActivityChart.tsx`
+Last updated: 2026-09-04
+
+**Pattern notes:** Client component (recharts). Props: `data: { day, value }[]`. Blue bars (`fill="var(--color-info)"`, `radius={[6,6,0,0]}`, `maxBarSize={48}`), y ticks `[0,3,6,9,12]`. Muted empty state when all values are 0.
+
+#### `JobsOverTimeChart` — `components/dashboard/JobsOverTimeChart.tsx`
+File: `components/dashboard/JobsOverTimeChart.tsx`
+Last updated: 2026-09-04
+
+**Pattern notes:** Client component (recharts). Props: `data: { day, value }[]`. Accent monotone area, 3px stroke, gradient fill (`stopColor="var(--color-accent)"` 0.25→0), y ticks `[0,25,50,75,100]`. Muted empty state when all values are 0.
+
+#### `MatchScoreChart` — `components/dashboard/MatchScoreChart.tsx`
+File: `components/dashboard/MatchScoreChart.tsx`
+Last updated: 2026-09-04
+
+**Pattern notes:** Client component (recharts). Props: `data: { range, value }[]` (ranges `50-60%`…`90-100%`). Success-green bars (`fill="var(--color-success)"`, `radius={[6,6,0,0]}`, `maxBarSize={64}`), y ticks `[0,25,50,75,100]`. Muted empty state when all values are 0.
+
+#### Shared chart chrome (all three dashboard charts)
+- Card: `bg-surface border border-border rounded-2xl p-6`, title 16px semibold, chart body `mt-4 h-[280px]` in `ResponsiveContainer`.
+- Grid: `vertical={false}`, `stroke="var(--color-border)"`, `strokeDasharray="4 4"`. Axes: no tick/axis lines, 12px muted ticks (`fill="var(--color-text-muted)"`), `dy={8}` on XAxis.
+- All SVG colors reference CSS vars — never hex (ui-tokens invariant). Matches ui-tokens Dashboard Chart Colors.
+
+#### `IncompleteProfileBanner` — `components/dashboard/IncompleteProfileBanner.tsx`
+File: `components/dashboard/IncompleteProfileBanner.tsx`
+Last updated: 2026-09-04
+
+**Pattern notes:** Server component, no props. Error-icon card (`AlertCircle text-error`) + 16px semibold heading + 14px secondary body + secondary "Complete profile" link to `/profile` (same button pattern as `JobDescriptionCard` "Load full description"). Page renders it only when `computeCompletion(profile).isComplete` is false.
+
+#### `DashboardPage` — `app/dashboard/page.tsx`
+File: `app/dashboard/page.tsx`
+Last updated: 2026-09-04
+
+| Property | Class |
+| --- | --- |
+| Background | `bg-background` (page) |
+| Border | `border-border` (via child cards) |
+| Border radius | `rounded-2xl` (child cards) |
+| Spacing | `py-12` (container), `px-8` (container), `gap-6` (stack) |
+
+**Pattern notes:** Server Component. `isAuthed` from `insforge_access_token` cookie (same as find-jobs page). Best-effort `profiles` fetch + `computeCompletion()` in try/catch — banner only when incomplete, silent on error. Layout: `mx-auto max-w-[1440px] px-8 py-12` outer, `flex flex-col gap-6` stack: banner? → `StatsBar` → `grid lg:grid-cols-2` (activity + research chart) → `grid lg:grid-cols-5` (over-time `col-span-3` + distribution `col-span-2`). Mounts `Navbar isAuthed activePath="/dashboard"` + `Footer` + `<PageviewTracker path="/dashboard" />`. Mock data matches `context/designs/dashboard.png`; all sections take typed data props so Features 15–17 plug real data in without structural changes.
+
 ---
 
 ## Patterns
