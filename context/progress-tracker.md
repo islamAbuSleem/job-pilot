@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 5 — Dashboard
-**Last completed:** 15 Stats Bar — Real Data
-**Next:** 16 Recent Activity — Real Data
+**Last completed:** 16 Recent Activity — Real Data
+**Next:** 17 Analytics Charts — PostHog Data
 
 ---
 
@@ -49,7 +49,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 - [x] 14 Dashboard Page — Full UI
 - [x] 15 Stats Bar — Real Data
-- [ ] 16 Recent Activity — Real Data
+- [x] 16 Recent Activity — Real Data
 - [ ] 17 Analytics Charts — PostHog Data
 
 ---
@@ -242,6 +242,12 @@ Update this file after every completed feature. Any AI agent reading this should
 - New `lib/dashboard-stats.ts` (`getDashboardStats(userId)`): one `select("match_score,found_at")` scoped to user → total, avg (rounded), this-week / prior-week splits computed in JS; researched count via `select("id", { count: "exact", head: true }).not("company_research", "is", null)`. Whole helper wrapped in try/catch returning zeros on failure so the page still renders.
 - Trends computed week-over-week to match the design badges: total trend = % change of this-week vs prior-week count; avg trend = point change of weekly avgs. Badge hidden when prior week has no jobs (no baseline) — honest empty state instead of a fake "+0%".
 - Page builds `StatItem[]` from real values; zero-stats fallback when logged out or on error. No structural changes to `StatsBar`/`StatsCard`.
+- `npm run build` clean; eslint clean.
+
+### 16 Recent Activity — Real Data
+- New `lib/dashboard-activity.ts` (`getRecentActivity(userId)`, max 5 entries): completed `agent_runs` ordered by `completed_at` desc (limit 10) → `research:*` rows become "Researched {company}" (info blue dot), others become "Found {N job(s)} for {title}" with proper pluralization (success green dot); times via shared `formatRelative()`; merged + re-sorted desc in JS. Try/catch returns `[]` on failure — the card's existing muted empty state covers it.
+- Deviation from spec (documented): spec says research entries come from the `jobs` table, but `jobs` has no researched-at timestamp so ordering would be wrong. Used the research `agent_runs` rows instead (written by our own research route with `completed_at`) — same "Researched {company}" format, correct recency. Only `completed` runs included (running/failed skipped).
+- Page drops `MOCK_ACTIVITY`, passes real entries. No changes to `RecentActivity` component.
 - `npm run build` clean; eslint clean.
 
 ## Notes

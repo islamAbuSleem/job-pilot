@@ -23,14 +23,7 @@ import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfil
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { computeCompletion } from "@/lib/profile-completion";
 import { getDashboardStats } from "@/lib/dashboard-stats";
-
-const MOCK_ACTIVITY: ActivityEntry[] = [
-  { text: "Found 8 jobs for Frontend Engineer", time: "10 mins ago", tone: "accent" },
-  { text: "Researched Stripe", time: "1 hour ago", tone: "info" },
-  { text: "Found 12 jobs for React Developer", time: "2 hours ago", tone: "success" },
-  { text: "Researched Vercel", time: "Yesterday", tone: "accent" },
-  { text: "Found 10 jobs for Full Stack Engineer", time: "Yesterday", tone: "success" },
-];
+import { getRecentActivity } from "@/lib/dashboard-activity";
 
 const MOCK_RESEARCH: ResearchActivityPoint[] = [
   { day: "Mon", value: 2 },
@@ -71,6 +64,7 @@ export default async function DashboardPage() {
     { label: "Companies Researched", value: "0", subtext: "Total researched" },
     { label: "Jobs This Week", value: "0", subtext: "New this week" },
   ];
+  let activity: ActivityEntry[] = [];
   try {
     const insforge = await createInsforgeServer();
     const { data: authData } = await insforge.auth.getCurrentUser();
@@ -108,6 +102,8 @@ export default async function DashboardPage() {
           subtext: "New this week",
         },
       ];
+
+      activity = await getRecentActivity(user.id);
     }
   } catch {
     showBanner = false;
@@ -123,7 +119,7 @@ export default async function DashboardPage() {
             {showBanner ? <IncompleteProfileBanner /> : null}
             <StatsBar stats={stats} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentActivity entries={MOCK_ACTIVITY} />
+              <RecentActivity entries={activity} />
               <ResearchActivityChart data={MOCK_RESEARCH} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
