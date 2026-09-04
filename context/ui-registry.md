@@ -795,7 +795,7 @@ Last updated: 2026-09-04
 | Border radius | `rounded-2xl` (child cards) |
 | Spacing | `py-12` (container), `px-8` (container), `gap-6` (stack) |
 
-**Pattern notes:** Server Component. `isAuthed` from `insforge_access_token` cookie (same as find-jobs page). Best-effort `profiles` fetch + `computeCompletion()` in try/catch — banner only when incomplete, silent on error. Layout: `mx-auto max-w-[1440px] px-8 py-12` outer, `flex flex-col gap-6` stack: banner? → `StatsBar` → `grid lg:grid-cols-2` (activity + research chart) → `grid lg:grid-cols-5` (over-time `col-span-3` + distribution `col-span-2`). Mounts `Navbar isAuthed activePath="/dashboard"` + `Footer` + `<PageviewTracker path="/dashboard" />`. Mock data matches `context/designs/dashboard.png`; all sections take typed data props so Features 15–17 plug real data in without structural changes.
+**Pattern notes:** Server Component. `isAuthed` from `insforge_access_token` cookie (same as find-jobs page). Best-effort `profiles` fetch + `computeCompletion()` in try/catch — banner only when incomplete, silent on error. Stats come from `getDashboardStats(user.id)` (`lib/dashboard-stats.ts`) — real DB values with week-over-week trends; zero-stats fallback when logged out or on error. Layout: `mx-auto max-w-[1440px] px-8 py-12` outer, `flex flex-col gap-6` stack: banner? → `StatsBar` → `grid lg:grid-cols-2` (activity + research chart) → `grid lg:grid-cols-5` (over-time `col-span-3` + distribution `col-span-2`). Mounts `Navbar isAuthed activePath="/dashboard"` + `Footer` + `<PageviewTracker path="/dashboard" />`. Activity + charts still take mock data props (Features 16–17 plug real data in without structural changes).
 
 ---
 

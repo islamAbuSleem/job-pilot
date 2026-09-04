@@ -22,13 +22,7 @@ import {
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { computeCompletion } from "@/lib/profile-completion";
-
-const MOCK_STATS: StatItem[] = [
-  { label: "Total Jobs Found", value: "284", trend: "+12%" },
-  { label: "Avg. Match Rate", value: "82%", trend: "+3%" },
-  { label: "Companies Researched", value: "35", subtext: "Total researched" },
-  { label: "Jobs This Week", value: "28", subtext: "New this week" },
-];
+import { getDashboardStats } from "@/lib/dashboard-stats";
 
 const MOCK_ACTIVITY: ActivityEntry[] = [
   { text: "Found 8 jobs for Frontend Engineer", time: "10 mins ago", tone: "accent" },
@@ -71,6 +65,12 @@ export default async function DashboardPage() {
   const isAuthed = Boolean(cookieStore.get("insforge_access_token")?.value);
 
   let showBanner = false;
+  let stats: StatItem[] = [
+    { label: "Total Jobs Found", value: "0" },
+    { label: "Avg. Match Rate", value: "0%" },
+    { label: "Companies Researched", value: "0", subtext: "Total researched" },
+    { label: "Jobs This Week", value: "0", subtext: "New this week" },
+  ];
   try {
     const insforge = await createInsforgeServer();
     const { data: authData } = await insforge.auth.getCurrentUser();
@@ -84,6 +84,30 @@ export default async function DashboardPage() {
       showBanner = !computeCompletion(
         profile as Parameters<typeof computeCompletion>[0],
       ).isComplete;
+
+      const real = await getDashboardStats(user.id);
+      stats = [
+        {
+          label: "Total Jobs Found",
+          value: String(real.total),
+          ...(real.totalTrend ? { trend: real.totalTrend } : {}),
+        },
+        {
+          label: "Avg. Match Rate",
+          value: `${real.avgMatchRate}%`,
+          ...(real.avgTrend ? { trend: real.avgTrend } : {}),
+        },
+        {
+          label: "Companies Researched",
+          value: String(real.researched),
+          subtext: "Total researched",
+        },
+        {
+          label: "Jobs This Week",
+          value: String(real.thisWeek),
+          subtext: "New this week",
+        },
+      ];
     }
   } catch {
     showBanner = false;
@@ -97,7 +121,7 @@ export default async function DashboardPage() {
         <div className="mx-auto max-w-[1440px] px-8 py-12">
           <div className="flex flex-col gap-6">
             {showBanner ? <IncompleteProfileBanner /> : null}
-            <StatsBar stats={MOCK_STATS} />
+            <StatsBar stats={stats} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RecentActivity entries={MOCK_ACTIVITY} />
               <ResearchActivityChart data={MOCK_RESEARCH} />

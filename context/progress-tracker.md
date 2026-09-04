@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 5 — Dashboard
-**Last completed:** 14 Dashboard Page — Full UI
-**Next:** 15 Stats Bar — Real Data
+**Last completed:** 15 Stats Bar — Real Data
+**Next:** 16 Recent Activity — Real Data
 
 ---
 
@@ -48,7 +48,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ### Phase 5 — Dashboard
 
 - [x] 14 Dashboard Page — Full UI
-- [ ] 15 Stats Bar — Real Data
+- [x] 15 Stats Bar — Real Data
 - [ ] 16 Recent Activity — Real Data
 - [ ] 17 Analytics Charts — PostHog Data
 
@@ -237,6 +237,12 @@ Update this file after every completed feature. Any AI agent reading this should
 - Middle row `grid lg:grid-cols-2`, bottom row `grid lg:grid-cols-5` (over-time `col-span-3`, distribution `col-span-2`) — matches design proportions.
 - Installed `recharts@^3.10.1`; registered in code-standards approved deps (mandated by build-plan.md:442).
 - `npm run build` clean (`/dashboard` registered as `ƒ (Dynamic)`); eslint clean on all new files.
+
+### 15 Stats Bar — Real Data
+- New `lib/dashboard-stats.ts` (`getDashboardStats(userId)`): one `select("match_score,found_at")` scoped to user → total, avg (rounded), this-week / prior-week splits computed in JS; researched count via `select("id", { count: "exact", head: true }).not("company_research", "is", null)`. Whole helper wrapped in try/catch returning zeros on failure so the page still renders.
+- Trends computed week-over-week to match the design badges: total trend = % change of this-week vs prior-week count; avg trend = point change of weekly avgs. Badge hidden when prior week has no jobs (no baseline) — honest empty state instead of a fake "+0%".
+- Page builds `StatItem[]` from real values; zero-stats fallback when logged out or on error. No structural changes to `StatsBar`/`StatsCard`.
+- `npm run build` clean; eslint clean.
 
 ## Notes
 
