@@ -48,7 +48,7 @@ export async function POST(
     const { data: jobRow, error: jobError } = await insforge.database
       .from("jobs")
       .select(
-        "id,title,company,about_role,matched_skills,missing_skills,company_research",
+        "id,title,company,about_role,source_url,matched_skills,missing_skills,company_research",
       )
       .eq("id", jobId)
       .eq("user_id", user.id)
@@ -64,6 +64,7 @@ export async function POST(
       title: string | null;
       company: string | null;
       about_role: string | null;
+      source_url: string | null;
       matched_skills: string[] | null;
       missing_skills: string[] | null;
     };
@@ -121,6 +122,7 @@ export async function POST(
         title: job.title ?? "",
         company: job.company ?? "",
         description: job.about_role ?? "",
+        sourceUrl: job.source_url ?? "",
         matchedSkills: Array.isArray(job.matched_skills)
           ? job.matched_skills
           : [],

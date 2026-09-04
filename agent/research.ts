@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { launchResearchBrowser } from "@/lib/browserbase";
 import { createStagehand } from "@/lib/stagehand";
+import type { StagehandBrowser } from "@/lib/browserbase";
 import { deriveCompanyHomepageUrl } from "@/lib/company-url";
 import {
   getClient,
@@ -16,6 +17,7 @@ export type ResearchJob = {
   title: string;
   company: string;
   description: string;
+  sourceUrl: string;
   matchedSkills: string[];
   missingSkills: string[];
 };
@@ -131,6 +133,43 @@ function pickSubPages(links: HomepageData["pageLinks"]): string[] {
   return ranked.slice(0, MAX_SUBPAGES).map((l) => l.url);
 }
 
+/**
+ * Resolve the real employer URL by navigating to the Adzuna source_url in
+ * the real browser. The browser follows the Adzuna 302 redirect naturally
+ * and (unlike Node fetch, which CloudFront 403s) lands on the actual
+ * employer job page. We then strip subdomains to derive the company
+ * homepage.
+ *
+ * Falls back to a name-based guess if the navigation throws or lands back
+ * on adzuna.com.
+ */
+async function resolveEmployerUrl(
+  page: Awaited<ReturnType<StagehandBrowser["context"]["pages"]>>[number],
+  company: string,
+  sourceUrl: string | null,
+): Promise<string> {
+  if (sourceUrl) {
+    try {
+      await page.goto(sourceUrl, { waitUntil: "domcontentloaded" });
+      const finalUrl = await page.url();
+      if (finalUrl && !finalUrl.includes("adzuna.com")) {
+        const hostname = new URL(finalUrl).hostname.replace(/^www\./, "");
+        const parts = hostname.split(".");
+        const rootDomain = parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
+        if (rootDomain && rootDomain !== hostname) {
+          return `https://${rootDomain}`;
+        }
+        if (rootDomain) {
+          return `https://${rootDomain}`;
+        }
+      }
+    } catch {
+      /* fall through to name-based fallback */
+    }
+  }
+  return deriveCompanyHomepageUrl(company);
+}
+
 const SYNTHESIS_SYSTEM = `You are a sharp career strategist preparing a candidate to apply for a specific role. You are given (a) research collected from the company's own website, (b) the job posting, and (c) the candidate's profile. Produce a concise, concrete briefing that gives this specific candidate an edge for this specific role.
 
 Rules:
@@ -241,7 +280,6 @@ export async function researchCompany(
   job: ResearchJob,
   profile: ProfileForMatching,
 ): Promise<JobResearchDossier> {
-  const homepageUrl = deriveCompanyHomepageUrl(job.company);
   const sources: string[] = [];
   let homepage: HomepageData | null = null;
   const subPages: SubPageData[] = [];
@@ -254,15 +292,17 @@ export async function researchCompany(
     const page = pages[0];
     if (!page) throw new Error("No page available in research browser");
 
+    const homepageUrl = await resolveEmployerUrl(page, job.company, job.sourceUrl || null);
+    sources.push(homepageUrl);
+
     try {
-      await page.goto(homepageUrl);
+      await page.goto(homepageUrl, { waitUntil: "domcontentloaded" });
     } catch (error) {
       console.error(
         `[agent/research] goto ${homepageUrl} failed:`,
         error instanceof Error ? error.message : String(error),
       );
     }
-    sources.push(homepageUrl);
 
     try {
       const { data } = await stagehand.extract(HOMEPAGE_INSTRUCTION, homepageSchema);
@@ -280,7 +320,7 @@ export async function researchCompany(
     if (hasHomepageSignal && homepage) {
       for (const url of pickSubPages(homepage.pageLinks)) {
         try {
-          await page.goto(url);
+          await page.goto(url, { waitUntil: "domcontentloaded" });
         } catch (error) {
           console.error(
             `[agent/research] goto ${url} failed:`,

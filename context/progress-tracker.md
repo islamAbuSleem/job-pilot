@@ -219,6 +219,14 @@ Update this file after every completed feature. Any AI agent reading this should
 - **Zod version pin**: top-level `zod` must be exactly `4.4.3` to match stagehand's nested copy — otherwise the `extract(instruction, schema)` overload fails type-check (`_zod.version.minor` literal mismatch) and TS silently falls back to the freeform overload. Do not bump top-level zod without checking stagehand's nested version.
 - `npm run build` clean (`/api/jobs/[id]/research` registered as `ƒ (Dynamic)`); eslint clean on all touched files.
 
+### 13 follow-up — agent uses real browser to follow Adzuna redirect (fix for shallow results 2026-09-03)
+- **Symptom:** clicking Research Company returned a shallow dossier — the agent was guessing the company homepage from the job's company name (e.g. `SimVentions, Inc` → `https://simventions.com` ✗), not visiting the real employer site.
+- **Root cause:** the original `resolveEmployerUrl` used Node `fetch(sourceUrl, { redirect: "follow" })` to follow the Adzuna redirect, but CloudFront 403s server-side fetches (proven in Feature 12 follow-up 5). It always fell back to the unreliable name-based guess.
+- **Fix:** rewrote the agent to navigate the Adzuna `source_url` in the real Browserbase browser (`page.goto(sourceUrl)`). The browser follows the 302 redirect naturally and lands on the actual employer job page. The homepage URL is derived from the real landing page hostname (stripping subdomains). Also added `waitForLoadState("domcontentloaded")` after each navigation so pages have content before Groq extracts them.
+- The route now selects `source_url` from the job row and passes it to the research agent.
+- **Build:** `npm run build` clean, eslint clean. Committed and pushed.
+- **NOT yet live-tested end-to-end** — no real Browserbase session has run yet (costs credits). First click on Research Company exercises the whole chain.
+
 ## Notes
 
 ### 02 Auth
