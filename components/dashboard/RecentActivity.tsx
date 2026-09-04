@@ -1,6 +1,7 @@
 export type ActivityTone = "accent" | "info" | "success";
 
 export type ActivityEntry = {
+  id: string;
   text: string;
   time: string;
   tone: ActivityTone;
@@ -31,7 +32,7 @@ export function RecentActivity({ entries }: Props) {
           {entries.map((entry) => {
             const dot = DOT_STYLES[entry.tone];
             return (
-              <li key={`${entry.text}-${entry.time}`} className="flex items-start gap-3">
+              <li key={entry.id} className="flex items-start gap-3">
                 <span
                   className={`mt-1 w-4 h-4 rounded-full ${dot.outer} border border-white flex items-center justify-center shrink-0`}
                   aria-hidden

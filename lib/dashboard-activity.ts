@@ -8,6 +8,7 @@ const MAX_ENTRIES = 5;
 const RESEARCH_PREFIX = "research:";
 
 type RunRow = {
+  id: string;
   status: string | null;
   job_title_searched: string | null;
   jobs_found: number | null;
@@ -26,7 +27,7 @@ export async function getRecentActivity(
     const insforge: ActivityClient = await createInsforgeServer();
     const { data, error } = await insforge.database
       .from("agent_runs")
-      .select("status,job_title_searched,jobs_found,started_at,completed_at")
+      .select("id,status,job_title_searched,jobs_found,started_at,completed_at")
       .eq("user_id", userId)
       .eq("status", "completed")
       .order("completed_at", { ascending: false })
@@ -36,7 +37,7 @@ export async function getRecentActivity(
       (r) => (r.completed_at ?? r.started_at) !== null,
     );
 
-    const entries: Array<ActivityEntry & { at: string }> = [];
+    const entries: Array<ActivityEntry & { at: string; id: string }> = [];
     for (const run of runs) {
       const at = (run.completed_at ?? run.started_at) as string;
       const searched = (run.job_title_searched ?? "").trim();
@@ -44,6 +45,7 @@ export async function getRecentActivity(
         const company = searched.slice(RESEARCH_PREFIX.length).trim();
         if (!company) continue;
         entries.push({
+          id: run.id,
           text: `Researched ${company}`,
           time: formatRelative(at),
           tone: "info",
@@ -52,6 +54,7 @@ export async function getRecentActivity(
       } else {
         if (!searched) continue;
         entries.push({
+          id: run.id,
           text: `Found ${pluralizeJobs(run.jobs_found ?? 0)} for ${searched}`,
           time: formatRelative(at),
           tone: "success",
@@ -63,7 +66,7 @@ export async function getRecentActivity(
     entries.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
     return entries
       .slice(0, MAX_ENTRIES)
-      .map(({ text, time, tone }) => ({ text, time, tone }));
+      .map(({ id, text, time, tone }) => ({ id, text, time, tone }));
   } catch (error) {
     console.error(
       "[dashboard-activity] failed:",
