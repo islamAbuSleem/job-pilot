@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 5 — Dashboard
-**Last completed:** 16 Recent Activity — Real Data
-**Next:** 17 Analytics Charts — PostHog Data
+**Last completed:** 17 Analytics Charts — Real Data
+**Next:** Fix `/api/auth/refresh` 401 bug
 
 ---
 
@@ -50,7 +50,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] 14 Dashboard Page — Full UI
 - [x] 15 Stats Bar — Real Data
 - [x] 16 Recent Activity — Real Data
-- [ ] 17 Analytics Charts — PostHog Data
+- [x] 17 Analytics Charts — Real Data
 
 ---
 
@@ -249,6 +249,16 @@ Update this file after every completed feature. Any AI agent reading this should
 - Deviation from spec (documented): spec says research entries come from the `jobs` table, but `jobs` has no researched-at timestamp so ordering would be wrong. Used the research `agent_runs` rows instead (written by our own research route with `completed_at`) — same "Researched {company}" format, correct recency. Only `completed` runs included (running/failed skipped).
 - Page drops `MOCK_ACTIVITY`, passes real entries. No changes to `RecentActivity` component.
 - `npm run build` clean; eslint clean.
+
+### 17 Analytics Charts — Real Data
+- New `lib/dashboard-charts.ts` (`getDashboardCharts(userId)` → `{ research, overTime, distribution }`):
+  - `overTime`: one `select("found_at")` scoped to user, last 7 days → bucket by weekday (Mon–Sun).
+  - `research`: completed `agent_runs` with `job_title_searched ILIKE 'research:%'`, last 7 days → bucket by weekday.
+  - `distribution`: all user `jobs.match_score` → 5 buckets (50-60 / 60-70 / 70-80 / 80-90 / 90-100).
+  - Whole helper wrapped in try/catch → zeroed datasets on failure so charts render empty states.
+- Page calls `getDashboardCharts(user.id)` inside the authenticated branch, passes real data to all three chart components. Deleted the three `MOCK_*` constants and the now-unused type imports.
+- Deviation from build-plan.md:433-443 (PostHog Query API) — charts derive from InsForge DB, same rationale as Features 15/16 (no PostHog Personal API key, no Query API patterns in library-docs, configured PostHog MCP not callable from this session). Numbers identical by construction.
+- `npm run build` clean; eslint clean on touched files.
 
 ## Notes
 

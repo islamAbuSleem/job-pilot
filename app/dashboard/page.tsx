@@ -7,51 +7,15 @@ import {
   RecentActivity,
   type ActivityEntry,
 } from "@/components/dashboard/RecentActivity";
-import {
-  ResearchActivityChart,
-  type ResearchActivityPoint,
-} from "@/components/dashboard/ResearchActivityChart";
-import {
-  JobsOverTimeChart,
-  type JobsOverTimePoint,
-} from "@/components/dashboard/JobsOverTimeChart";
-import {
-  MatchScoreChart,
-  type MatchScoreBucket,
-} from "@/components/dashboard/MatchScoreChart";
+import { ResearchActivityChart } from "@/components/dashboard/ResearchActivityChart";
+import { JobsOverTimeChart } from "@/components/dashboard/JobsOverTimeChart";
+import { MatchScoreChart } from "@/components/dashboard/MatchScoreChart";
 import { IncompleteProfileBanner } from "@/components/dashboard/IncompleteProfileBanner";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { computeCompletion } from "@/lib/profile-completion";
 import { getDashboardStats } from "@/lib/dashboard-stats";
 import { getRecentActivity } from "@/lib/dashboard-activity";
-
-const MOCK_RESEARCH: ResearchActivityPoint[] = [
-  { day: "Mon", value: 2 },
-  { day: "Tue", value: 5 },
-  { day: "Wed", value: 3 },
-  { day: "Thu", value: 8 },
-  { day: "Fri", value: 12 },
-  { day: "Sat", value: 4 },
-  { day: "Sun", value: 1 },
-];
-
-const MOCK_OVER_TIME: JobsOverTimePoint[] = [
-  { day: "Mon", value: 12 },
-  { day: "Tue", value: 45 },
-  { day: "Wed", value: 32 },
-  { day: "Thu", value: 60 },
-  { day: "Fri", value: 85 },
-  { day: "Sat", value: 40 },
-  { day: "Sun", value: 12 },
-];
-
-const MOCK_DISTRIBUTION: MatchScoreBucket[] = [
-  { range: "50-60%", value: 5 },
-  { range: "60-70%", value: 15 },
-  { range: "70-80%", value: 45 },
-  { range: "80-90%", value: 85 },
-  { range: "90-100%", value: 35 },
-];
+import { getDashboardCharts } from "@/lib/dashboard-charts";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -65,6 +29,7 @@ export default async function DashboardPage() {
     { label: "Jobs This Week", value: "0", subtext: "New this week" },
   ];
   let activity: ActivityEntry[] = [];
+  let charts = await getDashboardCharts("");
   try {
     const insforge = await createInsforgeServer();
     const { data: authData } = await insforge.auth.getCurrentUser();
@@ -104,6 +69,7 @@ export default async function DashboardPage() {
       ];
 
       activity = await getRecentActivity(user.id);
+      charts = await getDashboardCharts(user.id);
     }
   } catch {
     showBanner = false;
@@ -120,14 +86,14 @@ export default async function DashboardPage() {
             <StatsBar stats={stats} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RecentActivity entries={activity} />
-              <ResearchActivityChart data={MOCK_RESEARCH} />
+              <ResearchActivityChart data={charts.research} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
               <div className="lg:col-span-3">
-                <JobsOverTimeChart data={MOCK_OVER_TIME} />
+                <JobsOverTimeChart data={charts.overTime} />
               </div>
               <div className="lg:col-span-2">
-                <MatchScoreChart data={MOCK_DISTRIBUTION} />
+                <MatchScoreChart data={charts.distribution} />
               </div>
             </div>
           </div>
