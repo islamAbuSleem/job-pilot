@@ -252,7 +252,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### 17 Analytics Charts — Real Data
 - New `lib/dashboard-charts.ts` (`getDashboardCharts(userId)` → `{ research, overTime, distribution }`):
-  - `overTime`: one `select("found_at")` scoped to user, last 7 days → bucket by weekday (Mon–Sun).
+  - `overTime`: one `select("found_at")` scoped to user, last 30 days → bucket by weekday (Mon–Sun).
   - `research`: completed `agent_runs` with `job_title_searched ILIKE 'research:%'`, last 7 days → bucket by weekday.
   - `distribution`: all user `jobs.match_score` → 5 buckets (50-60 / 60-70 / 70-80 / 80-90 / 90-100).
   - Whole helper wrapped in try/catch → zeroed datasets on failure so charts render empty states.

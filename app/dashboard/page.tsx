@@ -15,7 +15,7 @@ import { createInsforgeServer } from "@/lib/insforge-server";
 import { computeCompletion } from "@/lib/profile-completion";
 import { getDashboardStats } from "@/lib/dashboard-stats";
 import { getRecentActivity } from "@/lib/dashboard-activity";
-import { getDashboardCharts } from "@/lib/dashboard-charts";
+import { getDashboardCharts, type DashboardCharts, type ResearchActivityPoint, type JobsOverTimePoint, type MatchScoreBucket } from "@/lib/dashboard-charts";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -29,7 +29,11 @@ export default async function DashboardPage() {
     { label: "Jobs This Week", value: "0", subtext: "New this week" },
   ];
   let activity: ActivityEntry[] = [];
-  let charts = await getDashboardCharts("");
+  let charts: DashboardCharts = {
+    research: [],
+    overTime: [],
+    distribution: [],
+  };
   try {
     const insforge = await createInsforgeServer();
     const { data: authData } = await insforge.auth.getCurrentUser();

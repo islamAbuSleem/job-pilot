@@ -3,8 +3,6 @@ import type { ResearchActivityPoint } from "@/components/dashboard/ResearchActiv
 import type { JobsOverTimePoint } from "@/components/dashboard/JobsOverTimeChart";
 import type { MatchScoreBucket } from "@/components/dashboard/MatchScoreChart";
 
-type ChartsClient = Awaited<ReturnType<typeof createInsforgeServer>>;
-
 const DAY_MS = 1000 * 60 * 60 * 24;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -30,8 +28,21 @@ const EMPTY_DISTRIBUTION: MatchScoreBucket[] = DISTRIBUTION_RANGES.map(
 );
 
 function weekdayIndex(iso: string): number {
-  const day = new Date(iso).getDay();
+  const day = new Date(iso).getUTCDay();
   return (day + 6) % 7;
+}
+
+function bucketByWeekday<T>(
+  rows: T[],
+  getDate: (row: T) => string | null | undefined,
+): number[] {
+  const buckets = [0, 0, 0, 0, 0, 0, 0];
+  for (const row of rows) {
+    const iso = getDate(row);
+    if (!iso) continue;
+    buckets[weekdayIndex(iso)]++;
+  }
+  return buckets;
 }
 
 export type DashboardCharts = {
@@ -49,20 +60,24 @@ export async function getDashboardCharts(
     distribution: EMPTY_DISTRIBUTION,
   };
   try {
-    const insforge: ChartsClient = await createInsforgeServer();
+    const insforge = await createInsforgeServer();
     const weekAgo = new Date(Date.now() - 7 * DAY_MS).toISOString();
+    const monthAgo = new Date(Date.now() - 30 * DAY_MS).toISOString();
 
     const { data: jobs, error: jobsError } = await insforge.database
       .from("jobs")
       .select("found_at")
       .eq("user_id", userId)
-      .gte("found_at", weekAgo);
+      .gte("found_at", monthAgo);
     if (jobsError) throw new Error(jobsError.message);
-    const overTime = EMPTY_OVER_TIME.map((d) => ({ ...d }));
-    for (const row of (jobs ?? []) as Array<{ found_at: string | null }>) {
-      if (!row.found_at) continue;
-      overTime[weekdayIndex(row.found_at)].value++;
-    }
+    const overTimeCounts = bucketByWeekday(
+      (jobs ?? []) as Array<{ found_at: string | null }>,
+      (row) => row.found_at,
+    );
+    const overTime = EMPTY_OVER_TIME.map((d, i) => ({
+      ...d,
+      value: overTimeCounts[i],
+    }));
 
     const { data: runs, error: runsError } = await insforge.database
       .from("agent_runs")
@@ -72,17 +87,21 @@ export async function getDashboardCharts(
       .ilike("job_title_searched", "research:%")
       .gte("completed_at", weekAgo);
     if (runsError) throw new Error(runsError.message);
-    const research = EMPTY_RESEARCH.map((d) => ({ ...d }));
-    for (const row of (runs ?? []) as Array<{ completed_at: string | null }>) {
-      if (!row.completed_at) continue;
-      research[weekdayIndex(row.completed_at)].value++;
-    }
+    const researchCounts = bucketByWeekday(
+      (runs ?? []) as Array<{ completed_at: string | null }>,
+      (row) => row.completed_at,
+    );
+    const research = EMPTY_RESEARCH.map((d, i) => ({
+      ...d,
+      value: researchCounts[i],
+    }));
 
     const { data: allJobs, error: allJobsError } = await insforge.database
       .from("jobs")
       .select("match_score")
       .eq("user_id", userId);
     if (allJobsError) throw new Error(allJobsError.message);
+    // Supabase .select() returns generic object — narrow to the column shape
     const distribution = EMPTY_DISTRIBUTION.map((d) => ({ ...d }));
     for (const row of (allJobs ?? []) as Array<{ match_score: number | null }>) {
       const score = typeof row.match_score === "number" ? row.match_score : 0;
