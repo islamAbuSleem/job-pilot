@@ -15,7 +15,7 @@ import { createInsforgeServer } from "@/lib/insforge-server";
 import { computeCompletion } from "@/lib/profile-completion";
 import { getDashboardStats } from "@/lib/dashboard-stats";
 import { getRecentActivity } from "@/lib/dashboard-activity";
-import { getDashboardCharts, type DashboardCharts, type ResearchActivityPoint, type JobsOverTimePoint, type MatchScoreBucket } from "@/lib/dashboard-charts";
+import { getDashboardCharts, type DashboardCharts } from "@/lib/dashboard-charts";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();

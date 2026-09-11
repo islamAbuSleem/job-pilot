@@ -7,14 +7,14 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** 5 — Dashboard
-**Last completed:** 17 Analytics Charts — Real Data
-**Next:** Fix `/api/auth/refresh` 401 bug
+**Last completed:** Auth refresh 401 fix (reroute hosted refresh POSTs to app route)
+**Next:** Live-verify token refresh in browser (expiry repro — see Decisions)
 
 ---
 
 ## TODOs
 
-- [ ] **Fix `/api/auth/refresh` 401 `AUTH_UNAUTHORIZED — No refresh token provided`**: the InsForge-hosted refresh endpoint (`https://p8i46jbn.eu-central.insforge.app/api/auth/refresh`) returns 401 when called directly. The `insforge_refresh_token` cookie is set on the app domain (`localhost:3000`), not the InsForge host, so direct browser hits carry no cookie. Investigate whether the browser client's automatic refresh (when the access token nears expiry) is hitting the right base URL and sending `credentials: "include"`; verify cookie domain/path settings; confirm the user is not silently logged out when the access token expires. Files: `app/api/auth/refresh/route.ts`, `lib/insforge-client.ts`, `proxy.ts` (`updateSession`).
+- [x] **Fix `/api/auth/refresh` 401 `AUTH_UNAUTHORIZED — No refresh token provided`**: root-caused in the installed SDK (`node_modules/@insforge/sdk/dist/ssr.mjs`) — `InsForgeClient.refreshAccessToken()` resolves relative `/api/auth/refresh` against the InsForge host via `buildUrl` (`new URL(path, baseUrl)`), so the browser POSTs cross-origin without the app-domain httpOnly refresh cookie. The browser client's own `refreshFromRoute()` already uses the app-relative route with `credentials: "include"` — only the core client's 401-retry path leaks to the host. Fix: `lib/insforge-client.ts` passes a `fetch` wrapper (`rerouteBackendRefresh`, a supported `CreateBrowserClientOptions.fetch`) that reroutes hosted `POST {baseUrl}/api/auth/refresh` calls to the app's own `/api/auth/refresh` route, which reads the cookie server-side. Build + eslint clean. NOT yet live-tested end-to-end — repro by letting the access token expire in the browser and confirming silent refresh with no hosted-401 noise.
 
 ---
 
@@ -257,7 +257,7 @@ Update this file after every completed feature. Any AI agent reading this should
   - `distribution`: all user `jobs.match_score` → 5 buckets (50-60 / 60-70 / 70-80 / 80-90 / 90-100).
   - Whole helper wrapped in try/catch → zeroed datasets on failure so charts render empty states.
 - Page calls `getDashboardCharts(user.id)` inside the authenticated branch, passes real data to all three chart components. Deleted the three `MOCK_*` constants and the now-unused type imports.
-- Deviation from build-plan.md:433-443 (PostHog Query API) — charts derive from InsForge DB, same rationale as Features 15/16 (no PostHog Personal API key, no Query API patterns in library-docs, configured PostHog MCP not callable from this session). Numbers identical by construction.
+- Deviation from build-plan.md:433-443 (PostHog Query API) — charts derive from InsForge DB, same rationale as Features 15/16 (no PostHog Personal API key, no Query API patterns in library-docs, configured PostHog MCP not callable from this session). Numbers will differ from PostHog event counts by construction (different source; 30-day overTime window collapsed into 7 weekday buckets to fit the chart component).
 - `npm run build` clean; eslint clean on touched files.
 
 ## Notes
@@ -272,7 +272,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - Env var name in this project: `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` + `NEXT_PUBLIC_POSTHOG_HOST`. PostHog's own docs typically use `NEXT_PUBLIC_POSTHOG_KEY` — don't be confused if a skill says "set POSTHOG_KEY". The code reads `_PROJECT_TOKEN` everywhere.
 - Browser init is a no-op when the env var is missing — safe to develop without keys.
 - Currently wired events: `$pageview` on `/`, `oauth_sign_in_started` on button click, `oauth_initiated` server-side when `initiateOAuth` runs, `oauth_succeeded` and `oauth_failed` in the callback. The four business events (`job_search_started`, `job_found`, `profile_completed`, `company_researched`) from `code-standards.md` are still pending Features 06/10/13.
-- No `posthog.identify(userId)` / `posthog.reset()` yet — those belong to the full Feature 03 scope.
+- `posthog.identify(userId)` / `posthog.reset()` are implemented in `instrumentation-client.ts` — identifies the user (with email/name) on page load and resets on logout or user switch, keyed by `posthog_identified_user_id` in localStorage.
 
 ### 02 Auth follow-up (rolled into 03 branch)
 - Added `app/profile/page.tsx` — placeholder that reads the current user via `createInsforgeServer().auth.getCurrentUser()` and renders a "Coming soon" card with a Sign-out link to `/api/auth/logout`. Feature 05 will replace this with the real form.
@@ -288,16 +288,3 @@ Update this file after every completed feature. Any AI agent reading this should
 - Generate via an API route handler at `app/api/resume/generate/route.ts` rather than a server action — PDF rendering is CPU-heavy and Next.js has tighter time budgets on server actions.
 - Storage: the uploaded resume lives at `<userId>/resume.pdf`. Consider keeping generated PDFs at a separate path (e.g. `<userId>/generated.pdf`) so the user's source resume is preserved. Surface both in `ResumeCard` with a "current resume" / "generated resume" distinction, or pick one and replace the other — decide before coding.
 - Auth + RLS: the generator route must run on the server (`export const runtime = "nodejs"`), read the profile from the DB via `createInsforgeServer()`, and only write to the user's own storage key.
-
----
-
-## Working Tree State (carryover from prior sessions — NOT touched in 07 follow-ups)
-
-These four items exist in the working tree but were not part of the Feature07 commit chain. They appear to be partial work from earlier sessions that landed before the `memory.md` snapshot this session started from.
-
-- **M** `app/profile/page.tsx` — extracted resume-path helper import + a smaller rewrite of the signed-URL block (now uses `extractResumePath(profile.resume_pdf_url, user.id)` instead of inline URL parsing).
-- **M** `components/profile/ResumeCard.tsx` — UI tweaks (specifics not verified this session).
-- **??** `app/api/resume/delete/` — route handler for deleting a saved resume. Likely an `app/api/resume/delete/route.ts` POST handler.
-- **??** `lib/resume-path.ts` — helper that wraps the signed-URL parsing logic. Probably `extractResumePath(stored, userId)` returning the storage object key.
-
-Decision before Feature 08 starts: commit these as part of Feature08 with a single `chore(profile): carryover cleanup` commit, or stash them and pick up later. They look like Feature06 cleanup that was left uncommitted — safest to commit them now so they aren't lost.

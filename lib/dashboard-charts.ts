@@ -27,6 +27,13 @@ const EMPTY_DISTRIBUTION: MatchScoreBucket[] = DISTRIBUTION_RANGES.map(
   ({ range }) => ({ range, value: 0 }),
 );
 
+// Why the `as` casts below: the InsForge database client returns
+// loosely-typed rows for `.select()` column lists, so narrow each result
+// to the selected columns with these named row types.
+type FoundAtRow = { found_at: string | null };
+type CompletedAtRow = { completed_at: string | null };
+type MatchScoreRow = { match_score: number | null };
+
 function weekdayIndex(iso: string): number {
   const day = new Date(iso).getUTCDay();
   return (day + 6) % 7;
@@ -71,7 +78,7 @@ export async function getDashboardCharts(
       .gte("found_at", monthAgo);
     if (jobsError) throw new Error(jobsError.message);
     const overTimeCounts = bucketByWeekday(
-      (jobs ?? []) as Array<{ found_at: string | null }>,
+      (jobs ?? []) as FoundAtRow[],
       (row) => row.found_at,
     );
     const overTime = EMPTY_OVER_TIME.map((d, i) => ({
@@ -88,7 +95,7 @@ export async function getDashboardCharts(
       .gte("completed_at", weekAgo);
     if (runsError) throw new Error(runsError.message);
     const researchCounts = bucketByWeekday(
-      (runs ?? []) as Array<{ completed_at: string | null }>,
+      (runs ?? []) as CompletedAtRow[],
       (row) => row.completed_at,
     );
     const research = EMPTY_RESEARCH.map((d, i) => ({
@@ -101,9 +108,8 @@ export async function getDashboardCharts(
       .select("match_score")
       .eq("user_id", userId);
     if (allJobsError) throw new Error(allJobsError.message);
-    // Supabase .select() returns generic object — narrow to the column shape
     const distribution = EMPTY_DISTRIBUTION.map((d) => ({ ...d }));
-    for (const row of (allJobs ?? []) as Array<{ match_score: number | null }>) {
+    for (const row of (allJobs ?? []) as MatchScoreRow[]) {
       const score = typeof row.match_score === "number" ? row.match_score : 0;
       const idx = DISTRIBUTION_RANGES.findIndex(
         (r) => score >= r.min && score < r.max,

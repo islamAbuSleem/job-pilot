@@ -1,15 +1,35 @@
 import { createBrowserClient } from "@insforge/sdk/ssr";
 
-// The InsForge SDK requires a customRefreshUrl to use the app's own
-// /api/auth/refresh route. This is essential because:
-// - The SDK's browser client calls the InsForge-hosted refresh endpoint directly
-// - The httpOnly insforge_refresh_token cookie is set on the app domain
-// - When the SDK calls the InsForge endpoint directly, it sends no cookies
-// - This causes a 401 "No refresh token provided" error
-// - Our rerouteBackendRefresh mechanism can't intercept this flow
-// - Using customRefreshUrl tells the SDK to use our route instead, which
-//   reads the insforge_refresh_token cookie server-side and refreshes tokens
+const APP_REFRESH_URL = "/api/auth/refresh";
+
+// Why: the core client's 401-retry path (InsForgeClient.refreshAccessToken)
+// resolves relative "/api/auth/refresh" against the InsForge host
+// (buildUrl does `new URL(path, baseUrl)`), so the browser POSTs cross-origin
+// without the app-domain httpOnly refresh cookie and the host answers 401
+// "No refresh token provided". Reroute those POSTs to the app's own refresh
+// route, which reads the cookie server-side and exchanges it for fresh tokens.
+function rerouteBackendRefresh(fetchImpl: typeof fetch): typeof fetch {
+  const origin = process.env.NEXT_PUBLIC_INSFORGE_URL?.replace(/\/+$/, "");
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+    const method =
+      init?.method ?? (input instanceof Request ? input.method : undefined);
+    if (
+      origin !== undefined &&
+      method?.toUpperCase() === "POST" &&
+      url.startsWith(`${origin}/api/auth/refresh`)
+    ) {
+      return fetchImpl(APP_REFRESH_URL, { ...init, credentials: "include" });
+    }
+    return fetchImpl(input, init);
+  };
+}
 
 export const insforge = createBrowserClient({
-  customRefreshUrl: "/api/auth/refresh",
+  fetch: rerouteBackendRefresh(globalThis.fetch.bind(globalThis)),
 });
